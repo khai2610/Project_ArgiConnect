@@ -5,36 +5,55 @@ const { generateToken } = require('../middlewares/shared/generateToken');
 
 
 exports.register = async (req, res) => {
-  try {
-    const { role, email, password } = req.body;
-
-    if (!['farmer', 'provider'].includes(role)) {
-      return res.status(400).json({ message: 'Role không hợp lệ' });
+    try {
+      const { role, email, password } = req.body;
+  
+      if (!['farmer', 'provider'].includes(role)) {
+        return res.status(400).json({ message: 'Role không hợp lệ' });
+      }
+  
+      const existing = await (role === 'farmer' ? Farmer : Provider).findOne({ email });
+      if (existing) return res.status(400).json({ message: 'Email đã được sử dụng' });
+  
+      const hashed = await hashPassword(password);
+  
+      if (role === 'farmer') {
+        const { name, phone, location } = req.body;
+  
+        const farmer = new Farmer({
+          name,
+          email,
+          phone,
+          password: hashed,
+          location,
+          role: 'farmer'
+        });
+  
+        await farmer.save();
+        return res.status(201).json({ message: 'Đăng ký farmer thành công' });
+      }
+  
+      if (role === 'provider') {
+        const { company_name, phone, address } = req.body;
+  
+        const provider = new Provider({
+          company_name,
+          email,
+          phone,
+          password: hashed,
+          address,
+          services: [], // bắt đầu với mảng dịch vụ rỗng
+          role: 'provider'
+        });
+  
+        await provider.save();
+        return res.status(201).json({ message: 'Đăng ký provider thành công, chờ admin duyệt' });
+      }
+  
+    } catch (err) {
+      res.status(500).json({ message: 'Lỗi server', error: err.message });
     }
-
-    const existing = await (role === 'farmer' ? Farmer : Provider).findOne({ email });
-    if (existing) return res.status(400).json({ message: 'Email đã được sử dụng' });
-
-    const hashed = await hashPassword(password);
-
-    if (role === 'farmer') {
-      const { name, phone, location } = req.body;
-      const farmer = new Farmer({ name, email, phone, password: hashed, location, role: 'farmer' });
-      await farmer.save();
-      return res.status(201).json({ message: 'Đăng ký farmer thành công' });
-    }
-
-    if (role === 'provider') {
-      const { company_name, phone, address, service_types } = req.body;
-      const provider = new Provider({ company_name, email, phone, password: hashed, address, service_types, role: 'provider' });
-      await provider.save();
-      return res.status(201).json({ message: 'Đăng ký provider thành công, chờ duyệt' });
-    }
-
-  } catch (err) {
-    res.status(500).json({ message: 'Lỗi server', error: err.message });
-  }
-};
+  };
 
 exports.login = async (req, res) => {
     try {

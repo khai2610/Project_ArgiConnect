@@ -7,7 +7,12 @@ const ProviderSchema = new mongoose.Schema({
   phone: String,
   password: String,
   address: String,
-  service_types: [String],
+  services: [
+    {
+      name: { type: String, required: true },
+      description: String
+    }
+  ],
   status: { type: String, enum: ['PENDING', 'APPROVED', 'REJECTED'], default: 'PENDING' }
 }, { timestamps: true });
 
