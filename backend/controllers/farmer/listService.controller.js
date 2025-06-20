@@ -4,8 +4,9 @@ exports.getAllApprovedProviders = async (req, res) => {
   try {
     const filter = { status: 'APPROVED' };
 
-    if (req.query.service_type) {
-      filter.service_types = req.query.service_type;
+    if (req.query.service_name) {
+      // Tìm providers có ít nhất một service có name khớp
+      filter['services.name'] = req.query.service_name;
     }
 
     const providers = await Provider.find(filter).select('-password -__v');
