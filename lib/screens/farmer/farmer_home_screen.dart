@@ -1,11 +1,9 @@
-import 'dart:convert';
 import 'package:flutter/material.dart';
-import 'package:http/http.dart' as http;
-import '../../utils/constants.dart';
 import '../auth/login_screen.dart';
 import 'create_request_screen.dart';
 import 'my_requests_screen.dart';
 import 'farmer_profile_screen.dart';
+import 'approved_providers_screen.dart';
 
 class FarmerHomeScreen extends StatefulWidget {
   final String token;
@@ -19,25 +17,6 @@ class _FarmerHomeScreenState extends State<FarmerHomeScreen> {
   int _selectedIndex = 0;
   List<dynamic> providers = [];
 
-  @override
-  void initState() {
-    super.initState();
-    fetchProviders();
-  }
-
-  Future<void> fetchProviders() async {
-    final res = await http.get(
-      Uri.parse('$baseUrl/farmer/list-services'),
-      headers: {'Authorization': 'Bearer ${widget.token}'},
-    );
-
-    if (res.statusCode == 200) {
-      setState(() {
-        providers = json.decode(res.body);
-      });
-    }
-  }
-
   void _logout() {
     Navigator.pushAndRemoveUntil(
       context,
@@ -50,43 +29,10 @@ class _FarmerHomeScreenState extends State<FarmerHomeScreen> {
     setState(() => _selectedIndex = index);
   }
 
-  Widget _buildProviderList() {
-    return ListView.builder(
-      itemCount: providers.length,
-      itemBuilder: (context, index) {
-        final provider = providers[index];
-        final List<dynamic> services = provider['services'] ?? [];
-
-        return Card(
-          elevation: 2,
-          margin: const EdgeInsets.symmetric(horizontal: 12, vertical: 6),
-          child: ExpansionTile(
-            title: Text(provider['company_name'] ?? 'Không tên'),
-            subtitle: Column(
-              crossAxisAlignment: CrossAxisAlignment.start,
-              children: [
-                Text("Email: ${provider['email'] ?? ''}"),
-                Text("SĐT: ${provider['phone'] ?? ''}"),
-                Text("Địa chỉ: ${provider['address'] ?? ''}"),
-              ],
-            ),
-            children: services.map((service) {
-              return ListTile(
-                title: Text(service['name'] ?? 'Dịch vụ'),
-                subtitle: Text(service['description'] ?? ''),
-                leading: const Icon(Icons.agriculture),
-              );
-            }).toList(),
-          ),
-        );
-      },
-    );
-  }
-
   Widget _buildMainContent() {
     switch (_selectedIndex) {
       case 0:
-        return _buildProviderList();
+        return ApprovedProvidersScreen(token: widget.token);
       case 1:
         return CreateRequestScreen(token: widget.token);
       case 2:

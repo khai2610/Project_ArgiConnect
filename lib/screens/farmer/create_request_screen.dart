@@ -48,11 +48,22 @@ class _CreateRequestScreenState extends State<CreateRequestScreen> {
     if (!_formKey.currentState!.validate()) return;
     _formKey.currentState!.save();
 
+    if (cropType.isEmpty ||
+        serviceType.isEmpty ||
+        province.isEmpty ||
+        preferredDate == null) {
+      ScaffoldMessenger.of(context).showSnackBar(
+        const SnackBar(
+            content: Text('Vui lòng điền đầy đủ thông tin bắt buộc')),
+      );
+      return;
+    }
+
     final payload = {
       'crop_type': cropType,
       'area_ha': areaHa,
       'service_type': serviceType,
-      'preferred_date': preferredDate?.toIso8601String(),
+      'preferred_date': preferredDate!.toIso8601String(),
       'field_location': {
         'province': province,
         'coordinates': {'lat': latitude, 'lng': longitude}
@@ -60,29 +71,71 @@ class _CreateRequestScreenState extends State<CreateRequestScreen> {
     };
 
     if (type == 'assigned' && selectedProviderId != null) {
-      payload['provider_id'] = selectedProviderId;
+      payload['provider_id'] = selectedProviderId!;
     }
 
-    final res = await http.post(
-      Uri.parse('$baseUrl/farmer/requests'),
-      headers: {
-        'Authorization': 'Bearer ${widget.token}',
-        'Content-Type': 'application/json',
-      },
-      body: json.encode(payload),
-    );
-
-    final body = json.decode(res.body);
-    if (res.statusCode == 201) {
-      if (!mounted) return;
-      ScaffoldMessenger.of(context).showSnackBar(
-        SnackBar(content: Text(body['message'] ?? 'Gửi yêu cầu thành công')),
+    try {
+      final res = await http.post(
+        Uri.parse('$baseUrl/farmer/requests'),
+        headers: {
+          'Authorization': 'Bearer ${widget.token}',
+          'Content-Type': 'application/json',
+        },
+        body: json.encode(payload),
       );
-      Navigator.pop(context);
-    } else {
+
+      if (!mounted) return;
+
+      if (res.statusCode == 201) {
+        final body = json.decode(res.body);
+
+        ScaffoldMessenger.of(context).showSnackBar(
+          SnackBar(content: Text(body['message'] ?? 'Gửi yêu cầu thành công')),
+        );
+
+        // Reset form
+        _formKey.currentState?.reset();
+        setState(() {
+          preferredDate = null;
+          selectedProviderId = null;
+        });
+
+        // Hiển thị dialog hỏi tiếp tục
+        showDialog(
+          context: context,
+          builder: (context) => AlertDialog(
+            title: const Text('Thành công'),
+            content: const Text('Bạn có muốn tạo thêm yêu cầu khác không?'),
+            actions: [
+              TextButton(
+                onPressed: () {
+                  Navigator.of(context).pop(); // Đóng dialog, tiếp tục tạo
+                },
+                child: const Text('Có'),
+              ),
+              TextButton(
+                onPressed: () {
+                  Navigator.of(context).pop(); // Đóng dialog
+                },
+                child: const Text('Không'),
+              ),
+            ],
+          ),
+        );
+      } else {
+        String errorMsg = 'Gửi yêu cầu thất bại';
+        try {
+          final body = json.decode(res.body);
+          errorMsg = body['message'] ?? errorMsg;
+        } catch (_) {}
+        ScaffoldMessenger.of(context).showSnackBar(
+          SnackBar(content: Text(errorMsg)),
+        );
+      }
+    } catch (e) {
       if (!mounted) return;
       ScaffoldMessenger.of(context).showSnackBar(
-        SnackBar(content: Text(body['message'] ?? 'Gửi yêu cầu thất bại')),
+        SnackBar(content: Text('Lỗi kết nối: ${e.toString()}')),
       );
     }
   }
@@ -152,20 +205,22 @@ class _CreateRequestScreenState extends State<CreateRequestScreen> {
                 onChanged: (val) => setState(() => type = val!),
               ),
               if (type == 'assigned')
-              DropdownButtonFormField<String>(
-                value: selectedProviderId,
-                hint: const Text('Chọn nhà cung cấp'),
-                items: providers.map<DropdownMenuItem<String>>((p) {
-                  return DropdownMenuItem<String>(
-                    value: p['_id'] as String,
-                    child: Text(p['company_name'] ?? 'Không tên'),
-                  );
-                }).toList(),
-                onChanged: (val) => setState(() => selectedProviderId = val),
-              ),
+                DropdownButtonFormField<String>(
+                  value: selectedProviderId,
+                  hint: const Text('Chọn nhà cung cấp'),
+                  items: providers.map<DropdownMenuItem<String>>((p) {
+                    return DropdownMenuItem<String>(
+                      value: p['_id'] as String,
+                      child: Text(p['company_name'] ?? 'Không tên'),
+                    );
+                  }).toList(),
+                  onChanged: (val) => setState(() => selectedProviderId = val),
+                ),
               const SizedBox(height: 20),
               ElevatedButton(
-                  onPressed: _submit, child: const Text("Gửi yêu cầu")),
+                onPressed: _submit,
+                child: const Text("Gửi yêu cầu"),
+              ),
             ],
           ),
         ),

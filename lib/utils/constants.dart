@@ -5,6 +5,7 @@ const String authLoginEndpoint = '$baseUrl/auth/login';
 
 const String createRequestEndpoint = '$baseUrl/farmer/requests';
 const String farmerProfileEndpoint = '$baseUrl/farmer/profile';
+const String approvedProvidersUrl = '$baseUrl/farmer/list-services';
 
 const String providerProfileEndpoint = '$baseUrl/provider/profile';
 const String providerRequestEndpoint = '$baseUrl/provider/requests';
