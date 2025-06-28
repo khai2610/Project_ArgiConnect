@@ -14,6 +14,7 @@ class MyRequestsScreen extends StatefulWidget {
 class _MyRequestsScreenState extends State<MyRequestsScreen> {
   List<dynamic> requests = [];
   bool isLoading = true;
+  String paymentFilter = 'ALL'; // ALL | PAID | UNPAID
 
   @override
   void initState() {
@@ -22,6 +23,8 @@ class _MyRequestsScreenState extends State<MyRequestsScreen> {
   }
 
   Future<void> fetchRequests() async {
+    setState(() => isLoading = true);
+
     final res = await http.get(
       Uri.parse('$baseUrl/farmer/requests'),
       headers: {'Authorization': 'Bearer ${widget.token}'},
@@ -33,12 +36,58 @@ class _MyRequestsScreenState extends State<MyRequestsScreen> {
         isLoading = false;
       });
     } else {
-      setState(() {
-        isLoading = false;
-      });
+      setState(() => isLoading = false);
       ScaffoldMessenger.of(context).showSnackBar(
         const SnackBar(content: Text('Không thể tải yêu cầu')),
       );
+    }
+  }
+
+  Future<void> _payRequest(String requestId) async {
+    final url = Uri.parse('$baseUrl/farmer/requests/$requestId/pay');
+
+    final res = await http.post(
+      url,
+      headers: {
+        'Authorization': 'Bearer ${widget.token}',
+      },
+    );
+
+    if (res.statusCode == 200) {
+      ScaffoldMessenger.of(context).showSnackBar(
+        const SnackBar(content: Text('Thanh toán thành công')),
+      );
+      fetchRequests(); // reload lại danh sách
+    } else {
+      debugPrint('Lỗi thanh toán: ${res.body}');
+      ScaffoldMessenger.of(context).showSnackBar(
+        const SnackBar(content: Text('Lỗi khi thanh toán')),
+      );
+    }
+  }
+
+  void _confirmAndPay(String requestId) async {
+    final confirmed = await showDialog<bool>(
+      context: context,
+      builder: (context) => AlertDialog(
+        title: const Text('Xác nhận thanh toán'),
+        content: const Text(
+            'Bạn có chắc chắn muốn thanh toán cho yêu cầu này không?'),
+        actions: [
+          TextButton(
+            onPressed: () => Navigator.pop(context, false),
+            child: const Text('Hủy'),
+          ),
+          ElevatedButton(
+            onPressed: () => Navigator.pop(context, true),
+            child: const Text('Xác nhận'),
+          ),
+        ],
+      ),
+    );
+
+    if (confirmed == true) {
+      _payRequest(requestId);
     }
   }
 
@@ -53,23 +102,36 @@ class _MyRequestsScreenState extends State<MyRequestsScreen> {
             .toString()
             .split(' ')[0]
         : 'Chưa chọn';
+    final status = req['status'];
+    final payment = req['payment_status'];
+    final requestId = req['_id'];
 
     return Card(
       margin: const EdgeInsets.symmetric(horizontal: 12, vertical: 6),
-      child: ListTile(
-        title: Text('$crop - $service'),
-        subtitle: Column(
+      child: Padding(
+        padding: const EdgeInsets.all(12),
+        child: Column(
           crossAxisAlignment: CrossAxisAlignment.start,
           children: [
+            Text('$crop - $service',
+                style: const TextStyle(fontWeight: FontWeight.bold)),
+            const SizedBox(height: 4),
             Text('Diện tích: $area ha'),
             Text('Ngày yêu cầu: $date'),
             Text(
                 'Nhà cung cấp: ${provider != null ? provider['company_name'] : 'Tự do'}'),
-            Text('Trạng thái: ${req['status']}'),
-            Text('Thanh toán: ${req['payment_status']}'),
+            Text('Trạng thái: $status'),
+            Text('Thanh toán: $payment'),
+            if (payment == 'UNPAID' && status == 'COMPLETED')
+              Align(
+                alignment: Alignment.centerRight,
+                child: ElevatedButton(
+                  onPressed: () => _confirmAndPay(requestId),
+                  child: const Text('Thanh toán'),
+                ),
+              ),
           ],
         ),
-        isThreeLine: true,
       ),
     );
   }
@@ -80,18 +142,51 @@ class _MyRequestsScreenState extends State<MyRequestsScreen> {
       return const Center(child: CircularProgressIndicator());
     }
 
-    if (requests.isEmpty) {
-      return const Center(child: Text('Chưa có yêu cầu nào'));
-    }
+    final filteredRequests = paymentFilter == 'ALL'
+        ? requests
+        : requests.where((r) => r['payment_status'] == paymentFilter).toList();
 
-    return RefreshIndicator(
-      onRefresh: fetchRequests,
-      child: ListView.builder(
-        itemCount: requests.length,
-        itemBuilder: (context, index) {
-          return _buildRequestCard(requests[index]);
-        },
-      ),
+    return Column(
+      children: [
+        Padding(
+          padding: const EdgeInsets.all(12),
+          child: Row(
+            children: [
+              const Text('Lọc thanh toán: '),
+              const SizedBox(width: 8),
+              DropdownButton<String>(
+                value: paymentFilter,
+                items: const [
+                  DropdownMenuItem(value: 'ALL', child: Text('Tất cả')),
+                  DropdownMenuItem(value: 'PAID', child: Text('Đã thanh toán')),
+                  DropdownMenuItem(
+                      value: 'UNPAID', child: Text('Chưa thanh toán')),
+                ],
+                onChanged: (value) {
+                  if (value != null) {
+                    setState(() {
+                      paymentFilter = value;
+                    });
+                  }
+                },
+              ),
+            ],
+          ),
+        ),
+        Expanded(
+          child: RefreshIndicator(
+            onRefresh: fetchRequests,
+            child: filteredRequests.isEmpty
+                ? const Center(child: Text('Không có yêu cầu nào phù hợp'))
+                : ListView.builder(
+                    itemCount: filteredRequests.length,
+                    itemBuilder: (context, index) {
+                      return _buildRequestCard(filteredRequests[index]);
+                    },
+                  ),
+          ),
+        ),
+      ],
     );
   }
 }

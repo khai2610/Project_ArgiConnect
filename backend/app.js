@@ -26,5 +26,7 @@ app.use('/api/provider/requests', require('./routes/provider/request.route'));
 app.use('/api/provider/invoices', require('./routes/provider/invoice.route'));
 app.use('/api/provider/services', require('./routes/provider/service.route'));
 
+app.use('/api/public', require('./routes/public/public.route'));
+
 
 module.exports = app;

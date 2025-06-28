@@ -25,15 +25,22 @@ exports.createInvoice = async (req, res) => {
       provider_id: providerId,
       farmer_id: request.farmer_id,
       total_amount,
-      note
+      note,
+      status: 'UNPAID' // ✅ đặt rõ ràng
     });
 
     await invoice.save();
+
+    // ✅ Cập nhật payment_status cho request
+    request.payment_status = 'UNPAID';
+    await request.save();
+
     res.status(201).json({ message: 'Lập hóa đơn thành công', invoice });
   } catch (err) {
     res.status(500).json({ message: 'Lỗi server', error: err.message });
   }
 };
+
 
 exports.getProviderInvoices = async (req, res) => {
   try {

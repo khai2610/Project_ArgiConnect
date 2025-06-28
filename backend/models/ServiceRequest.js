@@ -14,7 +14,6 @@ const ServiceRequestSchema = new mongoose.Schema({
 
   crop_type: String,
   area_ha: Number,
-
   service_type: { type: String }, // VD: "PHUN_THUOC", "KHẢO_SÁT"
   preferred_date: Date,
 
@@ -26,8 +25,8 @@ const ServiceRequestSchema = new mongoose.Schema({
 
   payment_status: {
     type: String,
-    enum: ['UNPAID', 'PAID'],
-    default: 'UNPAID'
+    enum: ['UNPAID', 'PAID', ''],
+    default: ''
   },
 
   rating: {
@@ -40,10 +39,10 @@ const ServiceRequestSchema = new mongoose.Schema({
     type: String,
     default: ''
   },
-  
+
   result: {
     description: String,
-    attachments: [String] // URL ảnh/video kết quả (nếu có)
+    attachments: [String]
   }
 }, { timestamps: true });
 

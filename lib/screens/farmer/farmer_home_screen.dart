@@ -4,6 +4,7 @@ import 'create_request_screen.dart';
 import 'my_requests_screen.dart';
 import 'farmer_profile_screen.dart';
 import 'approved_providers_screen.dart';
+import 'farmer_invoice_screen.dart';
 
 class FarmerHomeScreen extends StatefulWidget {
   final String token;
@@ -38,6 +39,8 @@ class _FarmerHomeScreenState extends State<FarmerHomeScreen> {
       case 2:
         return MyRequestsScreen(token: widget.token);
       case 3:
+        return FarmerInvoiceScreen(token: widget.token);
+      case 4:
         return FarmerProfileScreen(token: widget.token);
       default:
         return const Center(child: Text("Không có nội dung"));
@@ -62,10 +65,14 @@ class _FarmerHomeScreenState extends State<FarmerHomeScreen> {
         items: const [
           BottomNavigationBarItem(
               icon: Icon(Icons.home), label: 'Nhà cung cấp'),
-          BottomNavigationBarItem(icon: Icon(Icons.add), label: 'Tạo yêu cầu'),
+          BottomNavigationBarItem(
+              icon: Icon(Icons.add), label: 'Tạo yêu cầu'),
           BottomNavigationBarItem(
               icon: Icon(Icons.list), label: 'Yêu cầu của tôi'),
-          BottomNavigationBarItem(icon: Icon(Icons.person), label: 'Tài khoản'),
+          BottomNavigationBarItem(
+              icon: Icon(Icons.receipt), label: 'Hóa đơn'), 
+          BottomNavigationBarItem(
+              icon: Icon(Icons.person), label: 'Tài khoản'),
         ],
       ),
     );

@@ -25,16 +25,17 @@ const InvoiceSchema = new mongoose.Schema({
     type: String,
     default: 'VND'
   },
-  note: String,
+  note: {
+    type: String,
+    default: ''
+  },
   status: {
     type: String,
     enum: ['UNPAID', 'PAID'],
     default: 'UNPAID'
-  },
-  created_at: {
-    type: Date,
-    default: Date.now
   }
+}, {
+  timestamps: true // tạo createdAt, updatedAt tự động
 });
 
 module.exports = mongoose.model('Invoice', InvoiceSchema);

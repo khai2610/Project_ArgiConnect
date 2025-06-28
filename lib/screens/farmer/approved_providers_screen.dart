@@ -2,6 +2,7 @@ import 'dart:convert';
 import 'package:flutter/material.dart';
 import 'package:http/http.dart' as http;
 import '../../utils/constants.dart';
+import 'provider_detail_screen.dart';
 
 class ApprovedProvidersScreen extends StatefulWidget {
   final String token;
@@ -77,6 +78,17 @@ class _ApprovedProvidersScreenState extends State<ApprovedProvidersScreen> {
                   Text('Địa chỉ: ${provider['address']}'),
               ],
             ),
+            onTap: () {
+              Navigator.push(
+                context,
+                MaterialPageRoute(
+                  builder: (_) => ProviderDetailScreen(
+                    providerId: provider['_id'],
+                    token: widget.token,
+                  ),
+                ),
+              );
+            },
           ),
         );
       },
