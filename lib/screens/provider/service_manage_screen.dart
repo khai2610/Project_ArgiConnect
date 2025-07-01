@@ -94,59 +94,106 @@ class _ServiceManageScreenState extends State<ServiceManageScreen> {
   Widget _buildServiceCard(Map<String, dynamic> service) {
     final name = service['name'];
     final desc = service['description'] ?? '';
-
     final descCtrl = TextEditingController(text: desc);
 
-    return Card(
-      margin: const EdgeInsets.symmetric(horizontal: 12, vertical: 6),
-      child: Padding(
-        padding: const EdgeInsets.all(8),
-        child: Column(
-          crossAxisAlignment: CrossAxisAlignment.start,
-          children: [
-            Text(name, style: const TextStyle(fontWeight: FontWeight.bold)),
-            TextField(
-              controller: descCtrl,
-              decoration: const InputDecoration(labelText: 'Mô tả dịch vụ'),
-              onSubmitted: (value) => updateDescription(name, value),
+    return Container(
+      margin: const EdgeInsets.symmetric(horizontal: 16, vertical: 8),
+      padding: const EdgeInsets.all(16),
+      decoration: BoxDecoration(
+        color: Colors.white,
+        borderRadius: BorderRadius.circular(16),
+        boxShadow: const [
+          BoxShadow(
+            color: Colors.black12,
+            blurRadius: 6,
+            offset: Offset(0, 3),
+          )
+        ],
+      ),
+      child: Column(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
+          Text(name,
+              style:
+                  const TextStyle(fontSize: 16, fontWeight: FontWeight.bold)),
+          const SizedBox(height: 8),
+          TextField(
+            controller: descCtrl,
+            maxLines: 2,
+            decoration: const InputDecoration(
+              labelText: 'Mô tả dịch vụ',
+              border: OutlineInputBorder(),
             ),
-            Row(
-              mainAxisAlignment: MainAxisAlignment.end,
-              children: [
-                TextButton(
-                  onPressed: () => updateDescription(name, descCtrl.text),
-                  child: const Text('Cập nhật'),
-                ),
-                TextButton(
-                  onPressed: () => deleteService(name),
-                  child: const Text('Xoá', style: TextStyle(color: Colors.red)),
-                ),
-              ],
-            )
-          ],
-        ),
+          ),
+          const SizedBox(height: 8),
+          Row(
+            mainAxisAlignment: MainAxisAlignment.end,
+            children: [
+              TextButton.icon(
+                onPressed: () => updateDescription(name, descCtrl.text),
+                icon: const Icon(Icons.save),
+                label: const Text('Cập nhật'),
+              ),
+              TextButton.icon(
+                onPressed: () => deleteService(name),
+                icon: const Icon(Icons.delete, color: Colors.red),
+                label: const Text('Xoá', style: TextStyle(color: Colors.red)),
+              ),
+            ],
+          ),
+        ],
       ),
     );
   }
 
   Widget _buildAddServiceForm() {
-    return Padding(
+    return Container(
+      margin: const EdgeInsets.symmetric(horizontal: 16, vertical: 12),
       padding: const EdgeInsets.all(16),
+      decoration: BoxDecoration(
+        color: Colors.white,
+        borderRadius: BorderRadius.circular(16),
+        boxShadow: const [
+          BoxShadow(
+            color: Colors.black12,
+            blurRadius: 6,
+            offset: Offset(0, 3),
+          )
+        ],
+      ),
       child: Column(
+        crossAxisAlignment: CrossAxisAlignment.start,
         children: [
+          const Text('Thêm dịch vụ mới',
+              style: TextStyle(fontSize: 16, fontWeight: FontWeight.bold)),
+          const SizedBox(height: 12),
           TextField(
             controller: _nameController,
-            decoration: const InputDecoration(labelText: 'Tên dịch vụ'),
+            decoration: const InputDecoration(
+              labelText: 'Tên dịch vụ',
+              border: OutlineInputBorder(),
+            ),
           ),
+          const SizedBox(height: 12),
           TextField(
             controller: _descController,
-            decoration: const InputDecoration(labelText: 'Mô tả dịch vụ'),
+            decoration: const InputDecoration(
+              labelText: 'Mô tả dịch vụ',
+              border: OutlineInputBorder(),
+            ),
           ),
-          const SizedBox(height: 10),
-          ElevatedButton(
-            onPressed: () =>
-                addService(_nameController.text, _descController.text),
-            child: const Text('Thêm dịch vụ'),
+          const SizedBox(height: 12),
+          SizedBox(
+            width: double.infinity,
+            child: ElevatedButton.icon(
+              onPressed: () =>
+                  addService(_nameController.text, _descController.text),
+              icon: const Icon(Icons.add),
+              label: const Text('Thêm dịch vụ'),
+              style: ElevatedButton.styleFrom(
+                backgroundColor: Colors.green.shade700,
+              ),
+            ),
           ),
         ],
       ),
@@ -155,17 +202,19 @@ class _ServiceManageScreenState extends State<ServiceManageScreen> {
 
   @override
   Widget build(BuildContext context) {
-    if (isLoading) return const Center(child: CircularProgressIndicator());
-
-    return RefreshIndicator(
-      onRefresh: fetchServices,
-      child: ListView(
-        children: [
-          _buildAddServiceForm(),
-          const Divider(),
-          ...services.map((s) => _buildServiceCard(s)).toList(),
-        ],
-      ),
+    return Scaffold(
+      backgroundColor: Colors.green.shade50,
+      body: isLoading
+          ? const Center(child: CircularProgressIndicator())
+          : RefreshIndicator(
+              onRefresh: fetchServices,
+              child: ListView(
+                children: [
+                  _buildAddServiceForm(),
+                  ...services.map((s) => _buildServiceCard(s as Map<String, dynamic>)).toList(),
+                ],
+              ),
+            ),
     );
   }
 }

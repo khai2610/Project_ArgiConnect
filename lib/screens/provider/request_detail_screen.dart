@@ -155,7 +155,11 @@ class _RequestDetailScreenState extends State<RequestDetailScreen> {
     final paymentStatus = request?['payment_status'];
 
     return Scaffold(
-      appBar: AppBar(title: const Text('Chi tiết yêu cầu')),
+      backgroundColor: Colors.green.shade50,
+      appBar: AppBar(
+        backgroundColor: Colors.green.shade700,
+        title: const Text('Chi tiết yêu cầu'),
+      ),
       body: isLoading
           ? const Center(child: CircularProgressIndicator())
           : request == null
@@ -163,128 +167,211 @@ class _RequestDetailScreenState extends State<RequestDetailScreen> {
               : RefreshIndicator(
                   onRefresh: fetchRequestDetail,
                   child: SingleChildScrollView(
-                    physics: const AlwaysScrollableScrollPhysics(),
                     padding: const EdgeInsets.all(16),
+                    physics: const AlwaysScrollableScrollPhysics(),
                     child: Column(
                       crossAxisAlignment: CrossAxisAlignment.start,
                       children: [
-                        Text('Dịch vụ: ${request!['service_type'] ?? '---'}',
-                            style: const TextStyle(
-                                fontWeight: FontWeight.bold, fontSize: 18)),
-                        const SizedBox(height: 8),
-                        Text('Cây trồng: ${request!['crop_type'] ?? '---'}'),
-                        Text('Diện tích: ${request!['area_ha'] ?? 0} ha'),
-                        Text(
-                            'Ngày mong muốn: ${request!['preferred_date']?.split('T')[0] ?? '---'}'),
-                        Text('Trạng thái: $status'),
-                        Text('Thanh toán: $paymentStatus'),
-                        const Divider(height: 32),
+                        _buildCardSection([
+                          _buildInfoRow('Dịch vụ', request!['service_type']),
+                          _buildInfoRow('Cây trồng', request!['crop_type']),
+                          _buildInfoRow(
+                              'Diện tích', '${request!['area_ha'] ?? 0} ha'),
+                          _buildInfoRow(
+                              'Ngày mong muốn',
+                              request!['preferred_date']?.split('T')[0] ??
+                                  '---'),
+                          _buildColoredStatus('Trạng thái', status),
+                          _buildColoredStatus('Thanh toán', paymentStatus),
+                        ]),
+                        const SizedBox(height: 16),
                         if (status == 'PENDING') ...[
-                          ElevatedButton.icon(
-                            icon: const Icon(Icons.check),
-                            label: const Text('Chấp nhận yêu cầu'),
+                          _buildActionButton(
+                            icon: Icons.check,
+                            label: 'Chấp nhận yêu cầu',
                             onPressed: _acceptRequest,
                           ),
                         ],
                         if (status == 'ACCEPTED') ...[
-                          const Text('Hoàn thành yêu cầu:',
-                              style: TextStyle(fontWeight: FontWeight.bold)),
-                          const SizedBox(height: 8),
-                          TextField(
+                          _buildSectionTitle('Hoàn thành yêu cầu'),
+                          _buildTextField(
                             controller: _descriptionController,
+                            label: 'Mô tả kết quả',
                             maxLines: 3,
-                            decoration: const InputDecoration(
-                              labelText: 'Mô tả kết quả',
-                              border: OutlineInputBorder(),
-                            ),
-                          ),
-                          const SizedBox(height: 8),
-                          TextField(
-                            controller: _attachmentController,
-                            decoration: const InputDecoration(
-                              labelText: 'Link đính kèm (nếu có)',
-                              border: OutlineInputBorder(),
-                            ),
                           ),
                           const SizedBox(height: 12),
-                          ElevatedButton(
+                          _buildTextField(
+                            controller: _attachmentController,
+                            label: 'Link đính kèm (nếu có)',
+                          ),
+                          const SizedBox(height: 12),
+                          _buildActionButton(
+                            icon: Icons.check_circle_outline,
+                            label: 'Xác nhận hoàn thành',
                             onPressed: isCompleting ? null : _completeRequest,
-                            child: isCompleting
-                                ? const CircularProgressIndicator()
-                                : const Text('Xác nhận hoàn thành'),
+                            showLoading: isCompleting,
                           ),
                         ],
                         if (status == 'COMPLETED') ...[
-                          const Text('Kết quả xử lý:',
-                              style: TextStyle(fontWeight: FontWeight.bold)),
-                          const SizedBox(height: 6),
+                          _buildSectionTitle('Kết quả xử lý'),
                           Text(request!['result']?['description'] ??
                               'Không có mô tả'),
-                          const SizedBox(height: 12),
+                          const SizedBox(height: 8),
                           if ((request!['result']?['attachments'] as List?)
                                   ?.isNotEmpty ??
                               false)
                             Column(
                               crossAxisAlignment: CrossAxisAlignment.start,
                               children: [
+                                const SizedBox(height: 8),
                                 const Text('Tệp đính kèm:'),
-                                const SizedBox(height: 6),
+                                const SizedBox(height: 4),
                                 ...(request!['result']['attachments'] as List)
                                     .map((url) => Text('• $url')),
                               ],
                             ),
-                          const Divider(height: 24),
+                          const SizedBox(height: 16),
                           if (paymentStatus == 'UNPAID') ...[
-                            const Text('Hóa đơn: Chưa thanh toán',
-                                style: TextStyle(color: Colors.orange)),
+                            _buildColoredStatus(
+                                'Hóa đơn', 'Chưa thanh toán', Colors.orange),
                           ] else if (paymentStatus == 'PAID') ...[
-                            const Text('Hóa đơn: Đã thanh toán',
-                                style: TextStyle(color: Colors.green)),
+                            _buildColoredStatus(
+                                'Hóa đơn', 'Đã thanh toán', Colors.green),
                           ] else ...[
-                            const Text('Lập hóa đơn:',
-                                style: TextStyle(
-                                    fontWeight: FontWeight.bold, fontSize: 16)),
-                            const SizedBox(height: 8),
-                            TextField(
+                            _buildSectionTitle('Lập hóa đơn'),
+                            _buildTextField(
                               controller: _invoiceAmountController,
+                              label: 'Tổng tiền (VND)',
                               keyboardType: TextInputType.number,
-                              decoration: const InputDecoration(
-                                labelText: 'Tổng tiền (VND)',
-                                border: OutlineInputBorder(),
-                              ),
-                            ),
-                            const SizedBox(height: 8),
-                            TextField(
-                              controller: _invoiceNoteController,
-                              decoration: const InputDecoration(
-                                labelText: 'Ghi chú (nếu có)',
-                                border: OutlineInputBorder(),
-                              ),
                             ),
                             const SizedBox(height: 12),
-                            ElevatedButton(
+                            _buildTextField(
+                              controller: _invoiceNoteController,
+                              label: 'Ghi chú (nếu có)',
+                            ),
+                            const SizedBox(height: 12),
+                            _buildActionButton(
+                              icon: Icons.receipt,
+                              label: 'Lập hóa đơn',
                               onPressed:
                                   isCreatingInvoice ? null : _createInvoice,
-                              child: isCreatingInvoice
-                                  ? const CircularProgressIndicator()
-                                  : const Text('Lập hóa đơn'),
+                              showLoading: isCreatingInvoice,
                             ),
                           ]
                         ],
-                        const Divider(height: 32),
-                        const Text('Thông tin nông dân:',
-                            style: TextStyle(fontWeight: FontWeight.bold)),
-                        const SizedBox(height: 6),
-                        Text(
-                            'Họ tên: ${request!['farmer_id']?['name'] ?? '---'}'),
-                        Text(
-                            'Email: ${request!['farmer_id']?['email'] ?? '---'}'),
-                        Text(
-                            'SĐT: ${request!['farmer_id']?['phone'] ?? '---'}'),
+                        const SizedBox(height: 20),
+                        _buildSectionTitle('Thông tin nông dân'),
+                        _buildInfoRow(
+                            'Họ tên', request!['farmer_id']?['name'] ?? '---'),
+                        _buildInfoRow(
+                            'Email', request!['farmer_id']?['email'] ?? '---'),
+                        _buildInfoRow(
+                            'SĐT', request!['farmer_id']?['phone'] ?? '---'),
                       ],
                     ),
                   ),
                 ),
     );
   }
+
+// === WIDGET HELPERS ===
+
+  Widget _buildCardSection(List<Widget> children) {
+    return Container(
+      width: double.infinity,
+      padding: const EdgeInsets.all(16),
+      decoration: BoxDecoration(
+        color: Colors.white,
+        borderRadius: BorderRadius.circular(16),
+        boxShadow: const [
+          BoxShadow(color: Colors.black12, blurRadius: 8, offset: Offset(0, 4)),
+        ],
+      ),
+      child: Column(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: children,
+      ),
+    );
+  }
+
+  Widget _buildInfoRow(String label, String? value) {
+    return Padding(
+      padding: const EdgeInsets.symmetric(vertical: 4),
+      child: Text('$label: ${value ?? "---"}'),
+    );
+  }
+
+  Widget _buildColoredStatus(String label, String? value,
+      [Color? colorOverride]) {
+    final color = colorOverride ??
+        (value == 'PAID'
+            ? Colors.green
+            : value == 'UNPAID'
+                ? Colors.orange
+                : Colors.blueGrey);
+
+    return Padding(
+      padding: const EdgeInsets.symmetric(vertical: 4),
+      child: Text(
+        '$label: $value',
+        style: TextStyle(fontWeight: FontWeight.bold, color: color),
+      ),
+    );
+  }
+
+  Widget _buildSectionTitle(String title) {
+    return Padding(
+      padding: const EdgeInsets.symmetric(vertical: 8),
+      child: Text(
+        title,
+        style: const TextStyle(fontWeight: FontWeight.bold, fontSize: 16),
+      ),
+    );
+  }
+
+  Widget _buildTextField({
+    required TextEditingController controller,
+    required String label,
+    int maxLines = 1,
+    TextInputType keyboardType = TextInputType.text,
+  }) {
+    return TextField(
+      controller: controller,
+      maxLines: maxLines,
+      keyboardType: keyboardType,
+      decoration: InputDecoration(
+        labelText: label,
+        border: const OutlineInputBorder(),
+      ),
+    );
+  }
+
+  Widget _buildActionButton({
+    required IconData icon,
+    required String label,
+    required VoidCallback? onPressed,
+    bool showLoading = false,
+  }) {
+    return SizedBox(
+      width: double.infinity,
+      child: ElevatedButton.icon(
+        icon: showLoading
+            ? const SizedBox(
+                width: 16,
+                height: 16,
+                child: CircularProgressIndicator(strokeWidth: 2),
+              )
+            : Icon(icon),
+        label: Text(label),
+        onPressed: onPressed,
+        style: ElevatedButton.styleFrom(
+          backgroundColor: Colors.green.shade700,
+          padding: const EdgeInsets.symmetric(vertical: 14),
+          shape:
+              RoundedRectangleBorder(borderRadius: BorderRadius.circular(12)),
+        ),
+      ),
+    );
+  }
+
 }

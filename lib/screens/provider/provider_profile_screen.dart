@@ -76,45 +76,94 @@ class _ProviderProfileScreenState extends State<ProviderProfileScreen> {
   Widget build(BuildContext context) {
     if (isLoading) return const Center(child: CircularProgressIndicator());
 
-    return Padding(
-      padding: const EdgeInsets.all(16),
-      child: ListView(
-        children: [
-          TextFormField(
-            initialValue: companyName,
-            enabled: isEditing,
-            decoration: const InputDecoration(labelText: 'Tên công ty'),
-            onChanged: (val) => companyName = val,
+    return Scaffold(
+      backgroundColor: Colors.green.shade50,
+      body: SingleChildScrollView(
+        padding: const EdgeInsets.all(16),
+        child: Container(
+          padding: const EdgeInsets.all(20),
+          decoration: BoxDecoration(
+            color: Colors.white,
+            borderRadius: BorderRadius.circular(20),
+            boxShadow: const [
+              BoxShadow(
+                color: Colors.black12,
+                blurRadius: 8,
+                offset: Offset(0, 4),
+              )
+            ],
           ),
-          TextFormField(
-            initialValue: phone,
-            enabled: isEditing,
-            decoration: const InputDecoration(labelText: 'Số điện thoại'),
-            onChanged: (val) => phone = val,
+          child: Column(
+            children: [
+              const Text(
+                'Thông tin nhà cung cấp',
+                style: TextStyle(
+                  fontSize: 18,
+                  fontWeight: FontWeight.bold,
+                ),
+              ),
+              const SizedBox(height: 20),
+              TextFormField(
+                initialValue: companyName,
+                enabled: isEditing,
+                decoration: const InputDecoration(
+                  labelText: 'Tên công ty',
+                  border: OutlineInputBorder(),
+                ),
+                onChanged: (val) => companyName = val,
+              ),
+              const SizedBox(height: 12),
+              TextFormField(
+                initialValue: phone,
+                enabled: isEditing,
+                decoration: const InputDecoration(
+                  labelText: 'Số điện thoại',
+                  border: OutlineInputBorder(),
+                ),
+                onChanged: (val) => phone = val,
+              ),
+              const SizedBox(height: 12),
+              TextFormField(
+                initialValue: email,
+                enabled: false,
+                decoration: const InputDecoration(
+                  labelText: 'Email',
+                  border: OutlineInputBorder(),
+                ),
+              ),
+              const SizedBox(height: 12),
+              TextFormField(
+                initialValue: address,
+                enabled: isEditing,
+                decoration: const InputDecoration(
+                  labelText: 'Địa chỉ',
+                  border: OutlineInputBorder(),
+                ),
+                onChanged: (val) => address = val,
+              ),
+              const SizedBox(height: 20),
+              isEditing
+                  ? ElevatedButton.icon(
+                      onPressed: updateProfile,
+                      icon: const Icon(Icons.save),
+                      label: const Text('Lưu thay đổi'),
+                      style: ElevatedButton.styleFrom(
+                        backgroundColor: Colors.green.shade700,
+                        minimumSize: const Size.fromHeight(48),
+                      ),
+                    )
+                  : ElevatedButton.icon(
+                      onPressed: () => setState(() => isEditing = true),
+                      icon: const Icon(Icons.edit),
+                      label: const Text('Chỉnh sửa'),
+                      style: ElevatedButton.styleFrom(
+                        backgroundColor: Colors.green.shade700,
+                        minimumSize: const Size.fromHeight(48),
+                      ),
+                    ),
+            ],
           ),
-          TextFormField(
-            initialValue: email,
-            enabled: false,
-            decoration: const InputDecoration(labelText: 'Email'),
-          ),
-          TextFormField(
-            initialValue: address,
-            enabled: isEditing,
-            decoration: const InputDecoration(labelText: 'Địa chỉ'),
-            onChanged: (val) => address = val,
-          ),
-          const SizedBox(height: 20),
-          if (!isEditing)
-            ElevatedButton(
-              onPressed: () => setState(() => isEditing = true),
-              child: const Text('Chỉnh sửa'),
-            ),
-          if (isEditing)
-            ElevatedButton(
-              onPressed: updateProfile,
-              child: const Text('Lưu thay đổi'),
-            ),
-        ],
+        ),
       ),
     );
   }

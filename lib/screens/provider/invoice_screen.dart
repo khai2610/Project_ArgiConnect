@@ -16,9 +16,8 @@ class _InvoiceScreenState extends State<InvoiceScreen> {
   List<dynamic> invoices = [];
   bool isLoading = true;
 
-  // Bộ lọc
   String farmerKeyword = '';
-  Set<String> selectedStatuses = {}; // PAID, UNPAID
+  Set<String> selectedStatuses = {};
   Set<String> selectedServiceTypes = {};
   List<String> allServiceTypes = [];
 
@@ -41,7 +40,6 @@ class _InvoiceScreenState extends State<InvoiceScreen> {
         invoices = json.decode(res.body);
         isLoading = false;
 
-        // Lấy tất cả loại dịch vụ duy nhất
         allServiceTypes = invoices
             .map((inv) => inv['service_request_id']?['service_type'])
             .whereType<String>()
@@ -79,16 +77,19 @@ class _InvoiceScreenState extends State<InvoiceScreen> {
     showModalBottomSheet(
       context: context,
       isScrollControlled: true,
+      backgroundColor: Colors.white,
+      shape: const RoundedRectangleBorder(
+        borderRadius: BorderRadius.vertical(top: Radius.circular(24)),
+      ),
       builder: (_) {
         return StatefulBuilder(
           builder: (context, setModalState) {
             return Padding(
               padding: MediaQuery.of(context)
                   .viewInsets
-                  .add(const EdgeInsets.all(16)),
+                  .add(const EdgeInsets.all(24)),
               child: SingleChildScrollView(
                 child: Column(
-                  mainAxisSize: MainAxisSize.min,
                   children: [
                     const Text('Lọc hóa đơn',
                         style: TextStyle(fontWeight: FontWeight.bold)),
@@ -100,7 +101,9 @@ class _InvoiceScreenState extends State<InvoiceScreen> {
                           setModalState(() => farmerKeyword = value),
                     ),
                     const SizedBox(height: 12),
-                    const Text('Tình trạng thanh toán:'),
+                    const Align(
+                        alignment: Alignment.centerLeft,
+                        child: Text('Tình trạng thanh toán:')),
                     CheckboxListTile(
                       title: const Text('Đã thanh toán'),
                       value: selectedStatuses.contains('PAID'),
@@ -120,7 +123,9 @@ class _InvoiceScreenState extends State<InvoiceScreen> {
                       }),
                     ),
                     const Divider(),
-                    const Text('Loại dịch vụ:'),
+                    const Align(
+                        alignment: Alignment.centerLeft,
+                        child: Text('Loại dịch vụ:')),
                     ...allServiceTypes.map((type) => CheckboxListTile(
                           title: Text(type),
                           value: selectedServiceTypes.contains(type),
@@ -131,12 +136,13 @@ class _InvoiceScreenState extends State<InvoiceScreen> {
                           }),
                         )),
                     const SizedBox(height: 12),
-                    ElevatedButton(
+                    ElevatedButton.icon(
+                      icon: const Icon(Icons.check),
                       onPressed: () {
                         Navigator.pop(context);
-                        setState(() {}); // cập nhật lọc
+                        setState(() {});
                       },
-                      child: const Text('Áp dụng lọc'),
+                      label: const Text('Áp dụng lọc'),
                     )
                   ],
                 ),
@@ -160,11 +166,22 @@ class _InvoiceScreenState extends State<InvoiceScreen> {
             .split(' ')[0]
         : '---';
     final status = request?['status'] ?? '---';
+    final invoiceStatus = invoice['status'] ?? '---';
+    final isPaid = invoiceStatus == 'PAID';
 
-    return Card(
-      margin: const EdgeInsets.symmetric(horizontal: 12, vertical: 6),
+    return Container(
+      margin: const EdgeInsets.symmetric(horizontal: 16, vertical: 8),
+      padding: const EdgeInsets.all(16),
+      decoration: BoxDecoration(
+        color: Colors.white,
+        borderRadius: BorderRadius.circular(20),
+        boxShadow: const [
+          BoxShadow(color: Colors.black12, blurRadius: 6, offset: Offset(0, 3))
+        ],
+      ),
       child: ListTile(
-        title: Text('Dịch vụ: $service'),
+        title: Text('Dịch vụ: $service',
+            style: const TextStyle(fontWeight: FontWeight.bold)),
         subtitle: Column(
           crossAxisAlignment: CrossAxisAlignment.start,
           children: [
@@ -172,12 +189,17 @@ class _InvoiceScreenState extends State<InvoiceScreen> {
             Text('Trạng thái yêu cầu: $status'),
             Text('Tổng tiền: ${invoice['total_amount']} VND'),
             Text('Nông dân: ${farmer?['name'] ?? 'Không rõ'}'),
+            Text(
+              'Thanh toán: ${isPaid ? 'Đã thanh toán' : 'Chưa thanh toán'}',
+              style: TextStyle(
+                  color: isPaid ? Colors.green : Colors.orange,
+                  fontWeight: FontWeight.w600),
+            ),
             if (invoice['note'] != null &&
                 invoice['note'].toString().isNotEmpty)
               Text('Ghi chú: ${invoice['note']}'),
           ],
         ),
-        isThreeLine: true,
         onTap: () {
           Navigator.push(
             context,
@@ -192,39 +214,44 @@ class _InvoiceScreenState extends State<InvoiceScreen> {
 
   @override
   Widget build(BuildContext context) {
-    if (isLoading) return const Center(child: CircularProgressIndicator());
-
-    return Column(
-      children: [
-        Padding(
-          padding: const EdgeInsets.all(12),
-          child: Row(
-            mainAxisAlignment: MainAxisAlignment.spaceBetween,
-            children: [
-              const Text('Danh sách hóa đơn',
-                  style: TextStyle(fontSize: 18, fontWeight: FontWeight.bold)),
-              ElevatedButton.icon(
-                icon: const Icon(Icons.filter_alt),
-                label: const Text('Lọc'),
-                onPressed: _showFilterSheet,
-              ),
-            ],
-          ),
-        ),
-        Expanded(
-          child: RefreshIndicator(
-            onRefresh: fetchInvoices,
-            child: filteredInvoices.isEmpty
-                ? const Center(child: Text('Không có hóa đơn phù hợp'))
-                : ListView.builder(
-                    itemCount: filteredInvoices.length,
-                    itemBuilder: (context, index) {
-                      return _buildInvoiceCard(filteredInvoices[index]);
-                    },
+    return Scaffold(
+      backgroundColor: Colors.green.shade50,
+      body: isLoading
+          ? const Center(child: CircularProgressIndicator())
+          : Column(
+              children: [
+                Padding(
+                  padding:
+                      const EdgeInsets.symmetric(horizontal: 16, vertical: 16),
+                  child: Row(
+                    mainAxisAlignment: MainAxisAlignment.spaceBetween,
+                    children: [
+                      const Text('Danh sách hóa đơn',
+                          style: TextStyle(
+                              fontSize: 18, fontWeight: FontWeight.bold)),
+                      ElevatedButton.icon(
+                        icon: const Icon(Icons.filter_alt),
+                        label: const Text('Lọc'),
+                        onPressed: _showFilterSheet,
+                      ),
+                    ],
                   ),
-          ),
-        ),
-      ],
+                ),
+                Expanded(
+                  child: RefreshIndicator(
+                    onRefresh: fetchInvoices,
+                    child: filteredInvoices.isEmpty
+                        ? const Center(child: Text('Không có hóa đơn phù hợp'))
+                        : ListView.builder(
+                            itemCount: filteredInvoices.length,
+                            itemBuilder: (context, index) {
+                              return _buildInvoiceCard(filteredInvoices[index]);
+                            },
+                          ),
+                  ),
+                ),
+              ],
+            ),
     );
   }
 }

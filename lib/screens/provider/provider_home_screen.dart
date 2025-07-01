@@ -1,6 +1,5 @@
 import 'package:flutter/material.dart';
 import '../auth/login_screen.dart';
-// Import các màn hình con sau khi bạn tạo
 import 'request_list_screen.dart';
 import 'service_manage_screen.dart';
 import 'invoice_screen.dart';
@@ -49,8 +48,23 @@ class _ProviderHomeScreenState extends State<ProviderHomeScreen> {
   @override
   Widget build(BuildContext context) {
     return Scaffold(
+      backgroundColor: const Color(0xFFF7FDF7), // nền nhạt nổi logo
       appBar: AppBar(
-        title: const Text('Nhà cung cấp'),
+        backgroundColor: Colors.green.shade700,
+        title: Row(
+          children: [
+            Image.asset(
+              'assets/images/drone_white_no_bg.png',
+              height: 32,
+              width: 32,
+            ),
+            const SizedBox(width: 8),
+            const Text(
+              'Agri Drone',
+              style: TextStyle(fontWeight: FontWeight.bold),
+            ),
+          ],
+        ),
         actions: [
           IconButton(onPressed: _logout, icon: const Icon(Icons.logout)),
         ],
@@ -59,7 +73,7 @@ class _ProviderHomeScreenState extends State<ProviderHomeScreen> {
       bottomNavigationBar: BottomNavigationBar(
         currentIndex: _selectedIndex,
         onTap: _onTabTapped,
-        selectedItemColor: Colors.green,
+        selectedItemColor: Colors.green.shade700,
         unselectedItemColor: Colors.grey,
         items: const [
           BottomNavigationBarItem(icon: Icon(Icons.list), label: 'Yêu cầu'),

@@ -4,7 +4,6 @@ import 'package:http/http.dart' as http;
 import '../../utils/constants.dart';
 import 'request_detail_screen.dart';
 
-// 👇 Gộp bộ lọc
 class FilterOption {
   final String label;
   final String status;
@@ -76,7 +75,6 @@ class _RequestListScreenState extends State<RequestListScreen> {
         : '---';
     final status = req['status'];
 
-    // Màu & icon theo trạng thái
     Color statusColor;
     IconData statusIcon;
     switch (status) {
@@ -101,21 +99,36 @@ class _RequestListScreenState extends State<RequestListScreen> {
         statusIcon = Icons.help_outline;
     }
 
-    return Card(
-      margin: const EdgeInsets.symmetric(horizontal: 12, vertical: 6),
+    return Container(
+      margin: const EdgeInsets.symmetric(horizontal: 16, vertical: 8),
+      padding: const EdgeInsets.all(16),
+      decoration: BoxDecoration(
+        color: Colors.white,
+        borderRadius: BorderRadius.circular(20),
+        boxShadow: const [
+          BoxShadow(
+            color: Colors.black12,
+            blurRadius: 8,
+            offset: Offset(0, 4),
+          )
+        ],
+      ),
       child: ListTile(
-        leading: Icon(statusIcon, color: statusColor),
-        title: Text('$crop - $service'),
+        contentPadding: EdgeInsets.zero,
+        leading: Icon(statusIcon, color: statusColor, size: 32),
+        title: Text('$crop - $service',
+            style: const TextStyle(fontWeight: FontWeight.bold)),
         subtitle: Column(
           crossAxisAlignment: CrossAxisAlignment.start,
           children: [
+            const SizedBox(height: 4),
             Text('Diện tích: $area ha'),
             Text('Ngày thực hiện: $date'),
             Text('Nông dân: ${farmer?['name'] ?? 'Không rõ'}'),
             Text('Trạng thái: $status', style: TextStyle(color: statusColor)),
           ],
         ),
-        isThreeLine: true,
+        trailing: const Icon(Icons.arrow_forward_ios, size: 16),
         onTap: () {
           Navigator.push(
             context,
@@ -133,8 +146,6 @@ class _RequestListScreenState extends State<RequestListScreen> {
 
   @override
   Widget build(BuildContext context) {
-    if (isLoading) return const Center(child: CircularProgressIndicator());
-
     final filteredRequests = requests.where((r) {
       final matchStatus = selectedFilter.status == 'ALL' ||
           r['status'] == selectedFilter.status;
@@ -148,45 +159,55 @@ class _RequestListScreenState extends State<RequestListScreen> {
       return matchStatus && matchType;
     }).toList();
 
-    return Column(
-      children: [
-        Padding(
-          padding: const EdgeInsets.all(12),
-          child: Row(
-            children: [
-              const Text('Lọc:'),
-              const SizedBox(width: 12),
-              DropdownButton<FilterOption>(
-                value: selectedFilter,
-                items: filterOptions
-                    .map((f) => DropdownMenuItem(
-                          value: f,
-                          child: Text(f.label),
-                        ))
-                    .toList(),
-                onChanged: (value) {
-                  if (value != null) {
-                    setState(() => selectedFilter = value);
-                  }
-                },
-              ),
-            ],
-          ),
-        ),
-        Expanded(
-          child: RefreshIndicator(
-            onRefresh: fetchRequests,
-            child: filteredRequests.isEmpty
-                ? const Center(child: Text('Không có yêu cầu nào phù hợp'))
-                : ListView.builder(
-                    itemCount: filteredRequests.length,
-                    itemBuilder: (context, index) {
-                      return _buildRequestCard(filteredRequests[index]);
+    return Scaffold(
+      backgroundColor: Colors.green.shade50,
+      body: Column(
+        children: [
+          Padding(
+            padding: const EdgeInsets.all(16),
+            child: Row(
+              children: [
+                const Text('Lọc theo:',
+                    style: TextStyle(fontWeight: FontWeight.bold)),
+                const SizedBox(width: 12),
+                Expanded(
+                  child: DropdownButton<FilterOption>(
+                    value: selectedFilter,
+                    isExpanded: true,
+                    items: filterOptions
+                        .map((f) => DropdownMenuItem(
+                              value: f,
+                              child: Text(f.label),
+                            ))
+                        .toList(),
+                    onChanged: (value) {
+                      if (value != null) {
+                        setState(() => selectedFilter = value);
+                      }
                     },
                   ),
+                ),
+              ],
+            ),
           ),
-        ),
-      ],
+          Expanded(
+            child: isLoading
+                ? const Center(child: CircularProgressIndicator())
+                : RefreshIndicator(
+                    onRefresh: fetchRequests,
+                    child: filteredRequests.isEmpty
+                        ? const Center(
+                            child: Text('Không có yêu cầu nào phù hợp'))
+                        : ListView.builder(
+                            itemCount: filteredRequests.length,
+                            itemBuilder: (context, index) {
+                              return _buildRequestCard(filteredRequests[index]);
+                            },
+                          ),
+                  ),
+          ),
+        ],
+      ),
     );
   }
 }
