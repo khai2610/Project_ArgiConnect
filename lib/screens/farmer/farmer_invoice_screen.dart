@@ -45,7 +45,6 @@ class _FarmerInvoiceScreenState extends State<FarmerInvoiceScreen> {
   Widget _buildInvoiceCard(Map<String, dynamic> invoice) {
     final provider = invoice['provider_id'];
     final request = invoice['service_request_id'];
-
     final service = request?['service_type'] ?? '---';
     final date = request?['preferred_date'] != null
         ? DateTime.parse(request['preferred_date'])
@@ -54,28 +53,48 @@ class _FarmerInvoiceScreenState extends State<FarmerInvoiceScreen> {
             .split(' ')[0]
         : '---';
     final status = request?['status'] ?? '---';
-
     final isPaid = invoice['status'] == 'PAID';
 
-    return Card(
-      margin: const EdgeInsets.symmetric(horizontal: 12, vertical: 6),
+    return Container(
+      margin: const EdgeInsets.symmetric(horizontal: 16, vertical: 8),
+      padding: const EdgeInsets.all(16),
+      decoration: BoxDecoration(
+        color: Colors.white,
+        borderRadius: BorderRadius.circular(16),
+        boxShadow: const [
+          BoxShadow(
+            color: Colors.black12,
+            blurRadius: 8,
+            offset: Offset(0, 4),
+          )
+        ],
+      ),
       child: ListTile(
-        title: Text('Dịch vụ: $service'),
+        contentPadding: EdgeInsets.zero,
+        title: Text(
+          'Dịch vụ: $service',
+          style: const TextStyle(fontWeight: FontWeight.bold, fontSize: 16),
+        ),
         subtitle: Column(
           crossAxisAlignment: CrossAxisAlignment.start,
           children: [
+            const SizedBox(height: 6),
             Text('Ngày yêu cầu: $date'),
             Text('Trạng thái yêu cầu: $status'),
             Text('Tổng tiền: ${invoice['total_amount']} VND'),
             Text('Nhà cung cấp: ${provider?['company_name'] ?? '---'}'),
-            Text('Thanh toán: ${isPaid ? 'Đã thanh toán' : 'Chưa thanh toán'}',
-                style: TextStyle(color: isPaid ? Colors.green : Colors.orange)),
+            Text(
+              'Thanh toán: ${isPaid ? 'Đã thanh toán' : 'Chưa thanh toán'}',
+              style: TextStyle(
+                fontWeight: FontWeight.w600,
+                color: isPaid ? Colors.green : Colors.orange,
+              ),
+            ),
             if (invoice['note'] != null &&
                 invoice['note'].toString().isNotEmpty)
               Text('Ghi chú: ${invoice['note']}'),
           ],
         ),
-        isThreeLine: true,
         onTap: () {
           Navigator.push(
             context,
@@ -86,7 +105,6 @@ class _FarmerInvoiceScreenState extends State<FarmerInvoiceScreen> {
               ),
             ),
           );
-
         },
       ),
     );
@@ -94,20 +112,25 @@ class _FarmerInvoiceScreenState extends State<FarmerInvoiceScreen> {
 
   @override
   Widget build(BuildContext context) {
-    if (isLoading) return const Center(child: CircularProgressIndicator());
-
-    if (invoices.isEmpty) {
-      return const Center(child: Text('Không có hóa đơn nào'));
-    }
-
-    return RefreshIndicator(
-      onRefresh: fetchInvoices,
-      child: ListView.builder(
-        itemCount: invoices.length,
-        itemBuilder: (context, index) {
-          return _buildInvoiceCard(invoices[index]);
-        },
+    return Scaffold(
+      backgroundColor: Colors.green.shade50,
+      appBar: AppBar(
+        backgroundColor: Colors.green.shade700,
+        title: const Text('Hóa đơn'),
       ),
+      body: isLoading
+          ? const Center(child: CircularProgressIndicator())
+          : invoices.isEmpty
+              ? const Center(child: Text('Không có hóa đơn nào'))
+              : RefreshIndicator(
+                  onRefresh: fetchInvoices,
+                  child: ListView.builder(
+                    itemCount: invoices.length,
+                    itemBuilder: (context, index) {
+                      return _buildInvoiceCard(invoices[index]);
+                    },
+                  ),
+                ),
     );
   }
 }

@@ -36,20 +36,14 @@ class _ProviderDetailScreenState extends State<ProviderDetailScreen> {
 
   Future<Map<String, dynamic>> fetchProvider(String id) async {
     final res = await http.get(Uri.parse(getPublicProviderInfoUrl(id)));
-    if (res.statusCode == 200) {
-      return jsonDecode(res.body);
-    } else {
-      throw Exception('Không thể tải thông tin provider');
-    }
+    if (res.statusCode == 200) return jsonDecode(res.body);
+    throw Exception('Không thể tải thông tin provider');
   }
 
   Future<List<dynamic>> fetchServices(String id) async {
     final res = await http.get(Uri.parse(getPublicProviderServicesUrl(id)));
-    if (res.statusCode == 200) {
-      return jsonDecode(res.body);
-    } else {
-      throw Exception('Không thể tải danh sách dịch vụ');
-    }
+    if (res.statusCode == 200) return jsonDecode(res.body);
+    throw Exception('Không thể tải danh sách dịch vụ');
   }
 
   Future<void> submitRequest() async {
@@ -100,7 +94,11 @@ class _ProviderDetailScreenState extends State<ProviderDetailScreen> {
   @override
   Widget build(BuildContext context) {
     return Scaffold(
-      appBar: AppBar(title: const Text('Thông tin nhà cung cấp')),
+      backgroundColor: Colors.green.shade50,
+      appBar: AppBar(
+        backgroundColor: Colors.green.shade700,
+        title: const Text('Thông tin nhà cung cấp'),
+      ),
       body: FutureBuilder(
         future: Future.wait([_providerFuture, _servicesFuture]),
         builder: (context, snapshot) {
@@ -116,14 +114,16 @@ class _ProviderDetailScreenState extends State<ProviderDetailScreen> {
           final services = (snapshot.data as List)[1] as List<dynamic>;
 
           return SingleChildScrollView(
-            padding: const EdgeInsets.all(16),
+            padding: const EdgeInsets.all(24),
             child: Column(
               crossAxisAlignment: CrossAxisAlignment.start,
               children: [
                 Text(
                   provider['company_name'] ?? 'Không rõ tên công ty',
                   style: const TextStyle(
-                      fontSize: 20, fontWeight: FontWeight.bold),
+                    fontSize: 20,
+                    fontWeight: FontWeight.bold,
+                  ),
                 ),
                 const SizedBox(height: 8),
                 Text('Email: ${provider['email'] ?? ''}'),
@@ -131,11 +131,15 @@ class _ProviderDetailScreenState extends State<ProviderDetailScreen> {
                 Text('Địa chỉ: ${provider['address'] ?? ''}'),
                 const Divider(height: 32),
                 const Text(
-                  'Danh sách dịch vụ cung cấp:',
+                  'Dịch vụ cung cấp:',
                   style: TextStyle(fontSize: 16, fontWeight: FontWeight.bold),
                 ),
-                const SizedBox(height: 10),
+                const SizedBox(height: 12),
                 ...services.map((s) => Card(
+                      shape: RoundedRectangleBorder(
+                        borderRadius: BorderRadius.circular(16),
+                      ),
+                      elevation: 3,
                       child: ListTile(
                         title: Text(s['name']),
                         subtitle: Text(s['description'] ?? ''),
@@ -146,77 +150,107 @@ class _ProviderDetailScreenState extends State<ProviderDetailScreen> {
                               selectedService = s['name'];
                             });
                           },
+                          style: ElevatedButton.styleFrom(
+                            backgroundColor: Colors.green.shade700,
+                          ),
                           child: const Text('Gửi yêu cầu'),
                         ),
                       ),
                     )),
                 const SizedBox(height: 24),
-                if (showRequestForm) ...[
-                  const Divider(height: 32),
-                  const Text(
-                    'Thông tin gửi yêu cầu',
-                    style: TextStyle(fontSize: 16, fontWeight: FontWeight.bold),
-                  ),
-                  const SizedBox(height: 8),
-                  if (selectedService != null)
-                    Text(
-                      'Dịch vụ đã chọn: $selectedService',
-                      style: const TextStyle(fontWeight: FontWeight.bold),
+                if (showRequestForm)
+                  Container(
+                    padding: const EdgeInsets.all(20),
+                    margin: const EdgeInsets.only(top: 12),
+                    decoration: BoxDecoration(
+                      color: Colors.white,
+                      borderRadius: BorderRadius.circular(24),
+                      boxShadow: [
+                        BoxShadow(
+                          color: Colors.black12,
+                          blurRadius: 12,
+                          offset: Offset(0, 8),
+                        ),
+                      ],
                     ),
-                  const SizedBox(height: 12),
-                  TextField(
-                    controller: cropController,
-                    decoration: const InputDecoration(
-                      labelText: 'Loại cây trồng',
-                      border: OutlineInputBorder(),
-                    ),
-                  ),
-                  const SizedBox(height: 12),
-                  TextField(
-                    controller: areaController,
-                    keyboardType: TextInputType.number,
-                    decoration: const InputDecoration(
-                      labelText: 'Diện tích (ha)',
-                      border: OutlineInputBorder(),
-                    ),
-                  ),
-                  const SizedBox(height: 12),
-                  Row(
-                    children: [
-                      const Text('Ngày mong muốn:'),
-                      const SizedBox(width: 8),
-                      Text(selectedDate != null
-                          ? '${selectedDate!.toLocal()}'.split(' ')[0]
-                          : 'Chưa chọn'),
-                      const SizedBox(width: 8),
-                      ElevatedButton(
-                        onPressed: () async {
-                          final picked = await showDatePicker(
-                            context: context,
-                            initialDate: DateTime.now(),
-                            firstDate: DateTime.now(),
-                            lastDate:
-                                DateTime.now().add(const Duration(days: 365)),
-                          );
-                          if (picked != null) {
-                            setState(() {
-                              selectedDate = picked;
-                            });
-                          }
-                        },
-                        child: const Text('Chọn ngày'),
-                      ),
-                    ],
-                  ),
-                  const SizedBox(height: 16),
-                  SizedBox(
-                    width: double.infinity,
-                    child: ElevatedButton(
-                      onPressed: submitRequest,
-                      child: const Text('Xác nhận gửi yêu cầu'),
+                    child: Column(
+                      crossAxisAlignment: CrossAxisAlignment.start,
+                      children: [
+                        const Text(
+                          'Thông tin gửi yêu cầu',
+                          style: TextStyle(
+                              fontSize: 16, fontWeight: FontWeight.bold),
+                        ),
+                        const SizedBox(height: 12),
+                        if (selectedService != null)
+                          Text('Dịch vụ đã chọn: $selectedService'),
+                        const SizedBox(height: 12),
+                        TextField(
+                          controller: cropController,
+                          decoration: const InputDecoration(
+                            labelText: 'Loại cây trồng',
+                            border: OutlineInputBorder(),
+                          ),
+                        ),
+                        const SizedBox(height: 12),
+                        TextField(
+                          controller: areaController,
+                          keyboardType: TextInputType.number,
+                          decoration: const InputDecoration(
+                            labelText: 'Diện tích (ha)',
+                            border: OutlineInputBorder(),
+                          ),
+                        ),
+                        const SizedBox(height: 12),
+                        Row(
+                          children: [
+                            const Icon(Icons.calendar_today),
+                            const SizedBox(width: 8),
+                            Text(selectedDate != null
+                                ? '${selectedDate!.toLocal()}'.split(' ')[0]
+                                : 'Chưa chọn ngày'),
+                            const SizedBox(width: 8),
+                            ElevatedButton(
+                              onPressed: () async {
+                                final picked = await showDatePicker(
+                                  context: context,
+                                  initialDate: DateTime.now(),
+                                  firstDate: DateTime.now(),
+                                  lastDate: DateTime.now()
+                                      .add(const Duration(days: 365)),
+                                );
+                                if (picked != null) {
+                                  setState(() {
+                                    selectedDate = picked;
+                                  });
+                                }
+                              },
+                              style: ElevatedButton.styleFrom(
+                                backgroundColor: Colors.green.shade700,
+                              ),
+                              child: const Text('Chọn ngày'),
+                            ),
+                          ],
+                        ),
+                        const SizedBox(height: 16),
+                        SizedBox(
+                          width: double.infinity,
+                          child: ElevatedButton.icon(
+                            icon: const Icon(Icons.send),
+                            label: const Text('Xác nhận gửi yêu cầu'),
+                            style: ElevatedButton.styleFrom(
+                              backgroundColor: Colors.green.shade700,
+                              padding: const EdgeInsets.symmetric(vertical: 14),
+                              shape: RoundedRectangleBorder(
+                                borderRadius: BorderRadius.circular(16),
+                              ),
+                            ),
+                            onPressed: submitRequest,
+                          ),
+                        ),
+                      ],
                     ),
                   )
-                ]
               ],
             ),
           );

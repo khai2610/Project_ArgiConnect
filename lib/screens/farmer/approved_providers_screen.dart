@@ -28,7 +28,7 @@ class _ApprovedProvidersScreenState extends State<ApprovedProvidersScreen> {
   }
 
   Future<void> fetchProviders() async {
-    final url = Uri.parse(approvedProvidersUrl); // từ constants.dart
+    final url = Uri.parse(approvedProvidersUrl);
 
     try {
       final res = await http.get(
@@ -53,45 +53,71 @@ class _ApprovedProvidersScreenState extends State<ApprovedProvidersScreen> {
 
   @override
   Widget build(BuildContext context) {
-    if (isLoading) {
-      return const Center(child: CircularProgressIndicator());
-    }
-
-    if (providers.isEmpty) {
-      return const Center(child: Text('Không có nhà cung cấp nào được duyệt'));
-    }
-
-    return ListView.builder(
-      itemCount: providers.length,
-      itemBuilder: (context, index) {
-        final provider = providers[index];
-        return Card(
-          margin: const EdgeInsets.all(8),
-          child: ListTile(
-            title: Text(provider['company_name'] ?? 'Không tên'),
-            subtitle: Column(
-              crossAxisAlignment: CrossAxisAlignment.start,
-              children: [
-                Text('Email: ${provider['email']}'),
-                Text('SĐT: ${provider['phone']}'),
-                if (provider['address'] != null)
-                  Text('Địa chỉ: ${provider['address']}'),
-              ],
-            ),
-            onTap: () {
-              Navigator.push(
-                context,
-                MaterialPageRoute(
-                  builder: (_) => ProviderDetailScreen(
-                    providerId: provider['_id'],
-                    token: widget.token,
-                  ),
+    return Scaffold(
+      backgroundColor: Colors.green.shade50,
+      appBar: AppBar(
+        backgroundColor: Colors.green.shade700,
+        title: const Text('Nhà cung cấp đã duyệt'),
+      ),
+      body: isLoading
+          ? const Center(child: CircularProgressIndicator())
+          : providers.isEmpty
+              ? const Center(
+                  child: Text('Không có nhà cung cấp nào được duyệt'))
+              : ListView.builder(
+                  padding: const EdgeInsets.all(16),
+                  itemCount: providers.length,
+                  itemBuilder: (context, index) {
+                    final provider = providers[index];
+                    return Container(
+                      margin: const EdgeInsets.only(bottom: 16),
+                      padding: const EdgeInsets.all(16),
+                      decoration: BoxDecoration(
+                        color: Colors.white,
+                        borderRadius: BorderRadius.circular(20),
+                        boxShadow: const [
+                          BoxShadow(
+                            color: Colors.black12,
+                            blurRadius: 8,
+                            offset: Offset(0, 4),
+                          )
+                        ],
+                      ),
+                      child: ListTile(
+                        contentPadding: EdgeInsets.zero,
+                        title: Text(
+                          provider['company_name'] ?? 'Không tên',
+                          style: const TextStyle(
+                            fontWeight: FontWeight.bold,
+                            fontSize: 16,
+                          ),
+                        ),
+                        subtitle: Column(
+                          crossAxisAlignment: CrossAxisAlignment.start,
+                          children: [
+                            const SizedBox(height: 4),
+                            Text('Email: ${provider['email']}'),
+                            Text('SĐT: ${provider['phone']}'),
+                            if (provider['address'] != null)
+                              Text('Địa chỉ: ${provider['address']}'),
+                          ],
+                        ),
+                        trailing: const Icon(Icons.arrow_forward_ios, size: 16),
+                        onTap: () {
+                          Navigator.push(
+                            context,
+                            MaterialPageRoute(
+                              builder: (_) => ProviderDetailScreen(
+                                providerId: provider['_id'],
+                                token: widget.token,
+                              ),
+                            ),
+                          );
+                        },
+                      ),
+                    );
+                  },
                 ),
-              );
-            },
-          ),
-        );
-      },
     );
   }
 }

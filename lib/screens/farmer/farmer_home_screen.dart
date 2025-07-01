@@ -16,7 +16,6 @@ class FarmerHomeScreen extends StatefulWidget {
 
 class _FarmerHomeScreenState extends State<FarmerHomeScreen> {
   int _selectedIndex = 0;
-  List<dynamic> providers = [];
 
   void _logout() {
     Navigator.pushAndRemoveUntil(
@@ -50,8 +49,23 @@ class _FarmerHomeScreenState extends State<FarmerHomeScreen> {
   @override
   Widget build(BuildContext context) {
     return Scaffold(
+      backgroundColor: const Color(0xFFF7FDF7), // ✅ Làm nền nhạt hơn
       appBar: AppBar(
-        title: const Text('Nông dân'),
+        backgroundColor: Colors.green.shade700,
+        title: Row(
+          children: [
+            Image.asset(
+              'assets/images/drone_white_no_bg.png',
+              height: 32,
+              width: 32,
+            ),
+            const SizedBox(width: 8),
+            const Text(
+              'Agri Drone',
+              style: TextStyle(fontWeight: FontWeight.bold),
+            ),
+          ],
+        ),
         actions: [
           IconButton(onPressed: _logout, icon: const Icon(Icons.logout)),
         ],
@@ -60,19 +74,16 @@ class _FarmerHomeScreenState extends State<FarmerHomeScreen> {
       bottomNavigationBar: BottomNavigationBar(
         currentIndex: _selectedIndex,
         onTap: _onNavTap,
-        selectedItemColor: Colors.green,
+        selectedItemColor: Colors.green.shade700,
         unselectedItemColor: Colors.grey,
         items: const [
           BottomNavigationBarItem(
               icon: Icon(Icons.home), label: 'Nhà cung cấp'),
-          BottomNavigationBarItem(
-              icon: Icon(Icons.add), label: 'Tạo yêu cầu'),
+          BottomNavigationBarItem(icon: Icon(Icons.add), label: 'Tạo yêu cầu'),
           BottomNavigationBarItem(
               icon: Icon(Icons.list), label: 'Yêu cầu của tôi'),
-          BottomNavigationBarItem(
-              icon: Icon(Icons.receipt), label: 'Hóa đơn'), 
-          BottomNavigationBarItem(
-              icon: Icon(Icons.person), label: 'Tài khoản'),
+          BottomNavigationBarItem(icon: Icon(Icons.receipt), label: 'Hóa đơn'),
+          BottomNavigationBarItem(icon: Icon(Icons.person), label: 'Tài khoản'),
         ],
       ),
     );

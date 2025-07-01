@@ -21,8 +21,7 @@ class _CreateRequestScreenState extends State<CreateRequestScreen> {
   double latitude = 0.0;
   double longitude = 0.0;
   DateTime? preferredDate;
-  String type = 'free'; // hoặc 'assigned'
-
+  String type = 'free';
   List<dynamic> providers = [];
   String? selectedProviderId;
 
@@ -88,19 +87,15 @@ class _CreateRequestScreenState extends State<CreateRequestScreen> {
 
       if (res.statusCode == 201) {
         final body = json.decode(res.body);
-
         ScaffoldMessenger.of(context).showSnackBar(
           SnackBar(content: Text(body['message'] ?? 'Gửi yêu cầu thành công')),
         );
-
-        // Reset form
         _formKey.currentState?.reset();
         setState(() {
           preferredDate = null;
           selectedProviderId = null;
         });
 
-        // Hiển thị dialog hỏi tiếp tục
         showDialog(
           context: context,
           builder: (context) => AlertDialog(
@@ -108,15 +103,11 @@ class _CreateRequestScreenState extends State<CreateRequestScreen> {
             content: const Text('Bạn có muốn tạo thêm yêu cầu khác không?'),
             actions: [
               TextButton(
-                onPressed: () {
-                  Navigator.of(context).pop(); // Đóng dialog, tiếp tục tạo
-                },
+                onPressed: () => Navigator.of(context).pop(),
                 child: const Text('Có'),
               ),
               TextButton(
-                onPressed: () {
-                  Navigator.of(context).pop(); // Đóng dialog
-                },
+                onPressed: () => Navigator.of(context).pop(),
                 child: const Text('Không'),
               ),
             ],
@@ -143,85 +134,164 @@ class _CreateRequestScreenState extends State<CreateRequestScreen> {
   @override
   Widget build(BuildContext context) {
     return Scaffold(
-      appBar: AppBar(title: const Text("Tạo yêu cầu")),
-      body: Padding(
-        padding: const EdgeInsets.all(16),
-        child: Form(
-          key: _formKey,
-          child: ListView(
-            children: [
-              TextFormField(
-                decoration: const InputDecoration(labelText: 'Loại cây trồng'),
-                onSaved: (val) => cropType = val ?? '',
-              ),
-              TextFormField(
-                decoration: const InputDecoration(labelText: 'Diện tích (ha)'),
-                keyboardType: TextInputType.number,
-                onSaved: (val) => areaHa = double.tryParse(val ?? '') ?? 0.0,
-              ),
-              TextFormField(
-                decoration: const InputDecoration(labelText: 'Loại dịch vụ'),
-                onSaved: (val) => serviceType = val ?? '',
-              ),
-              TextFormField(
-                decoration: const InputDecoration(labelText: 'Tỉnh'),
-                onSaved: (val) => province = val ?? '',
-              ),
-              TextFormField(
-                decoration: const InputDecoration(labelText: 'Vĩ độ (lat)'),
-                keyboardType: TextInputType.number,
-                onSaved: (val) => latitude = double.tryParse(val ?? '') ?? 0.0,
-              ),
-              TextFormField(
-                decoration: const InputDecoration(labelText: 'Kinh độ (lng)'),
-                keyboardType: TextInputType.number,
-                onSaved: (val) => longitude = double.tryParse(val ?? '') ?? 0.0,
-              ),
-              const SizedBox(height: 10),
-              ListTile(
-                title: const Text('Chọn ngày thực hiện'),
-                subtitle:
-                    Text(preferredDate?.toLocal().toString() ?? 'Chưa chọn'),
-                onTap: () async {
-                  final picked = await showDatePicker(
-                    context: context,
-                    initialDate: DateTime.now().add(const Duration(days: 1)),
-                    firstDate: DateTime.now(),
-                    lastDate: DateTime.now().add(const Duration(days: 30)),
-                  );
-                  if (picked != null) {
-                    setState(() {
-                      preferredDate = picked;
-                    });
-                  }
-                },
-              ),
-              DropdownButtonFormField<String>(
-                value: type,
-                items: const [
-                  DropdownMenuItem(value: 'free', child: Text('Tự do')),
-                  DropdownMenuItem(value: 'assigned', child: Text('Chỉ định')),
-                ],
-                onChanged: (val) => setState(() => type = val!),
-              ),
-              if (type == 'assigned')
-                DropdownButtonFormField<String>(
-                  value: selectedProviderId,
-                  hint: const Text('Chọn nhà cung cấp'),
-                  items: providers.map<DropdownMenuItem<String>>((p) {
-                    return DropdownMenuItem<String>(
-                      value: p['_id'] as String,
-                      child: Text(p['company_name'] ?? 'Không tên'),
-                    );
-                  }).toList(),
-                  onChanged: (val) => setState(() => selectedProviderId = val),
+      backgroundColor: Colors.green.shade50,
+      appBar: AppBar(
+        backgroundColor: Colors.green.shade700,
+        title: const Text("Tạo yêu cầu"),
+      ),
+      body: Center(
+        child: SingleChildScrollView(
+          padding: const EdgeInsets.all(24),
+          child: Container(
+            padding: const EdgeInsets.all(24),
+            constraints: const BoxConstraints(maxWidth: 500),
+            decoration: BoxDecoration(
+              color: Colors.white,
+              borderRadius: BorderRadius.circular(24),
+              boxShadow: [
+                BoxShadow(
+                  color: Colors.black12,
+                  blurRadius: 12,
+                  offset: Offset(0, 8),
                 ),
-              const SizedBox(height: 20),
-              ElevatedButton(
-                onPressed: _submit,
-                child: const Text("Gửi yêu cầu"),
+              ],
+            ),
+            child: Form(
+              key: _formKey,
+              child: Column(
+                children: [
+                  TextFormField(
+                    decoration: const InputDecoration(
+                      labelText: 'Loại cây trồng',
+                      prefixIcon: Icon(Icons.local_florist),
+                      border: OutlineInputBorder(),
+                    ),
+                    onSaved: (val) => cropType = val ?? '',
+                  ),
+                  const SizedBox(height: 16),
+                  TextFormField(
+                    decoration: const InputDecoration(
+                      labelText: 'Diện tích (ha)',
+                      prefixIcon: Icon(Icons.square_foot),
+                      border: OutlineInputBorder(),
+                    ),
+                    keyboardType: TextInputType.number,
+                    onSaved: (val) =>
+                        areaHa = double.tryParse(val ?? '') ?? 0.0,
+                  ),
+                  const SizedBox(height: 16),
+                  TextFormField(
+                    decoration: const InputDecoration(
+                      labelText: 'Loại dịch vụ',
+                      prefixIcon: Icon(Icons.miscellaneous_services),
+                      border: OutlineInputBorder(),
+                    ),
+                    onSaved: (val) => serviceType = val ?? '',
+                  ),
+                  const SizedBox(height: 16),
+                  TextFormField(
+                    decoration: const InputDecoration(
+                      labelText: 'Tỉnh',
+                      prefixIcon: Icon(Icons.map),
+                      border: OutlineInputBorder(),
+                    ),
+                    onSaved: (val) => province = val ?? '',
+                  ),
+                  const SizedBox(height: 16),
+                  TextFormField(
+                    decoration: const InputDecoration(
+                      labelText: 'Vĩ độ (lat)',
+                      prefixIcon: Icon(Icons.place),
+                      border: OutlineInputBorder(),
+                    ),
+                    keyboardType: TextInputType.number,
+                    onSaved: (val) =>
+                        latitude = double.tryParse(val ?? '') ?? 0.0,
+                  ),
+                  const SizedBox(height: 16),
+                  TextFormField(
+                    decoration: const InputDecoration(
+                      labelText: 'Kinh độ (lng)',
+                      prefixIcon: Icon(Icons.place_outlined),
+                      border: OutlineInputBorder(),
+                    ),
+                    keyboardType: TextInputType.number,
+                    onSaved: (val) =>
+                        longitude = double.tryParse(val ?? '') ?? 0.0,
+                  ),
+                  const SizedBox(height: 16),
+                  ListTile(
+                    title: const Text('Chọn ngày thực hiện'),
+                    subtitle: Text(
+                        preferredDate?.toLocal().toString().split(' ')[0] ??
+                            'Chưa chọn'),
+                    trailing: const Icon(Icons.calendar_today),
+                    onTap: () async {
+                      final picked = await showDatePicker(
+                        context: context,
+                        initialDate:
+                            DateTime.now().add(const Duration(days: 1)),
+                        firstDate: DateTime.now(),
+                        lastDate: DateTime.now().add(const Duration(days: 30)),
+                      );
+                      if (picked != null) {
+                        setState(() {
+                          preferredDate = picked;
+                        });
+                      }
+                    },
+                  ),
+                  const SizedBox(height: 16),
+                  DropdownButtonFormField<String>(
+                    value: type,
+                    decoration: const InputDecoration(
+                      labelText: 'Hình thức yêu cầu',
+                      border: OutlineInputBorder(),
+                    ),
+                    items: const [
+                      DropdownMenuItem(value: 'free', child: Text('Tự do')),
+                      DropdownMenuItem(
+                          value: 'assigned', child: Text('Chỉ định')),
+                    ],
+                    onChanged: (val) => setState(() => type = val!),
+                  ),
+                  if (type == 'assigned') ...[
+                    const SizedBox(height: 16),
+                    DropdownButtonFormField<String>(
+                      value: selectedProviderId,
+                      decoration: const InputDecoration(
+                        labelText: 'Chọn nhà cung cấp',
+                        border: OutlineInputBorder(),
+                      ),
+                      hint: const Text('Chọn nhà cung cấp'),
+                      items: providers.map<DropdownMenuItem<String>>((p) {
+                        return DropdownMenuItem<String>(
+                          value: p['_id'] as String,
+                          child: Text(p['company_name'] ?? 'Không tên'),
+                        );
+                      }).toList(),
+                      onChanged: (val) =>
+                          setState(() => selectedProviderId = val),
+                    ),
+                  ],
+                  const SizedBox(height: 24),
+                  SizedBox(
+                    width: double.infinity,
+                    child: ElevatedButton(
+                      style: ElevatedButton.styleFrom(
+                        backgroundColor: Colors.green.shade700,
+                        padding: const EdgeInsets.symmetric(vertical: 14),
+                        shape: RoundedRectangleBorder(
+                          borderRadius: BorderRadius.circular(16),
+                        ),
+                      ),
+                      onPressed: _submit,
+                      child: const Text("Gửi yêu cầu"),
+                    ),
+                  ),
+                ],
               ),
-            ],
+            ),
           ),
         ),
       ),
