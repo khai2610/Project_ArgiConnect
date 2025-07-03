@@ -28,5 +28,6 @@ app.use('/api/provider/services', require('./routes/provider/service.route'));
 
 app.use('/api/public', require('./routes/public/public.route'));
 
+app.use('/api/admin', require('./routes/admin/admin.route'));
 
 module.exports = app;

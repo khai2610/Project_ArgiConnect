@@ -1,64 +1,96 @@
-const User = require('../models/User');
+const Provider = require('../../models/Provider');
+const Farmer = require('../../models/Farmer');
+const Invoice = require('../../models/Invoice');
+const ServiceRequest = require('../../models/ServiceRequest');
 
-// Lấy danh sách theo vai trò
-exports.getUsersByRole = async (req, res) => {
+// ✅ Lấy danh sách provider chờ duyệt
+exports.getPendingProviders = async (req, res) => {
   try {
-    const { role } = req.params;
-    const { keyword = '', isActive } = req.query;
-
-    const filter = { role };
-    if (keyword) {
-      filter.name = { $regex: keyword, $options: 'i' };
-    }
-    if (isActive !== undefined) {
-      filter.isActive = isActive === 'true';
-    }
-
-    const users = await User.find(filter).select('-passwordHash');
-    res.json(users);
+    const providers = await Provider.find({ status: 'PENDING' }).select('-password');
+    res.json(providers);
   } catch (err) {
-    res.status(500).json({ message: 'Lỗi lấy danh sách', error: err.message });
+    res.status(500).json({ message: 'Lỗi server', error: err.message });
   }
 };
 
-// Lấy chi tiết user theo ID
-exports.getUserById = async (req, res) => {
+// ✅ Duyệt provider
+exports.approveProvider = async (req, res) => {
   try {
-    const { id } = req.params;
+    const provider = await Provider.findByIdAndUpdate(
+      req.params.id,
+      { status: 'APPROVED' },
+      { new: true }
+    ).select('-password');
 
-    const user = await User.findById(id).select('-passwordHash');
-    if (!user) return res.status(404).json({ message: 'Không tìm thấy người dùng' });
+    if (!provider) return res.status(404).json({ message: 'Không tìm thấy provider' });
 
-    res.json(user);
+    res.json({ message: 'Duyệt thành công', provider });
   } catch (err) {
-    res.status(500).json({ message: 'Lỗi truy vấn', error: err.message });
+    res.status(500).json({ message: 'Lỗi server', error: err.message });
   }
 };
 
-// Cập nhật user
-exports.updateUser = async (req, res) => {
+// ✅ Từ chối provider
+exports.rejectProvider = async (req, res) => {
   try {
-    const { id } = req.params;
-    const updated = await User.findByIdAndUpdate(id, req.body, { new: true }).select('-passwordHash');
-    res.json(updated);
+    const provider = await Provider.findByIdAndUpdate(
+      req.params.id,
+      { status: 'REJECTED' },
+      { new: true }
+    ).select('-password');
+
+    if (!provider) return res.status(404).json({ message: 'Không tìm thấy provider' });
+
+    res.json({ message: 'Từ chối thành công', provider });
   } catch (err) {
-    res.status(500).json({ message: 'Lỗi cập nhật', error: err.message });
+    res.status(500).json({ message: 'Lỗi server', error: err.message });
   }
 };
 
-// Xoá (soft delete hoặc hard delete)
-exports.deleteUser = async (req, res) => {
+// ✅ Lấy danh sách tất cả nông dân
+exports.getAllFarmers = async (req, res) => {
   try {
-    const { id } = req.params;
-
-    // Cách 1: Hard delete
-    await User.findByIdAndDelete(id);
-
-    // Cách 2: Soft delete (nếu muốn dùng)
-    // await User.findByIdAndUpdate(id, { isActive: false });
-
-    res.json({ message: 'Xoá thành công' });
+    const farmers = await Farmer.find().select('-password');
+    res.json(farmers);
   } catch (err) {
-    res.status(500).json({ message: 'Lỗi xoá', error: err.message });
+    res.status(500).json({ message: 'Lỗi server', error: err.message });
+  }
+};
+
+// ✅ Lấy danh sách tất cả provider
+exports.getAllProviders = async (req, res) => {
+  try {
+    const providers = await Provider.find().select('-password');
+    res.json(providers);
+  } catch (err) {
+    res.status(500).json({ message: 'Lỗi server', error: err.message });
+  }
+};
+
+// ✅ Lấy danh sách yêu cầu
+exports.getAllRequests = async (req, res) => {
+  try {
+    const requests = await ServiceRequest.find()
+      .populate('farmer_id', 'name email phone')
+      .populate('provider_id', 'company_name email phone')
+      .sort({ createdAt: -1 });
+
+    res.json(requests);
+  } catch (err) {
+    res.status(500).json({ message: 'Lỗi server', error: err.message });
+  }
+};
+
+// ✅ Lấy danh sách hóa đơn
+exports.getAllInvoices = async (req, res) => {
+  try {
+    const invoices = await Invoice.find()
+      .populate('farmer_id', 'name email phone')
+      .populate('provider_id', 'company_name email phone')
+      .populate('service_request_id', 'service_type preferred_date status');
+
+    res.json(invoices);
+  } catch (err) {
+    res.status(500).json({ message: 'Lỗi server', error: err.message });
   }
 };

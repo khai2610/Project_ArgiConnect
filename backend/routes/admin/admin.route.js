@@ -1,22 +1,16 @@
+// routes/admin.route.js
 const express = require('express');
 const router = express.Router();
-const adminCtrl = require('../controllers/admin.controller');
-const auth = require('../middlewares/auth');
-const checkRole = require('../middlewares/roleCheck');
+const controller = require('../../controllers/admin/admin.controller');
+const { verifyToken } = require('../../middlewares/auth.middleware');
 
-// Middleware admin
-const adminOnly = [auth, checkRole('admin')];
+router.get('/providers/pending', verifyToken('admin'), controller.getPendingProviders);
+router.patch('/providers/:id/approve', verifyToken('admin'), controller.approveProvider);
+router.patch('/providers/:id/reject', verifyToken('admin'), controller.rejectProvider);
 
-// Lấy danh sách provider hoặc farmer
-router.get('/users/:role',  adminCtrl.getUsersByRole);
-
-// Lấy chi tiết user
-router.get('/user/:id', adminOnly, adminCtrl.getUserById);
-
-// Cập nhật user
-router.put('/user/:id', adminOnly, adminCtrl.updateUser);
-
-// Xoá user
-router.delete('/user/:id', adminOnly, adminCtrl.deleteUser);
+router.get('/farmers', verifyToken('admin'), controller.getAllFarmers);
+router.get('/providers', verifyToken('admin'), controller.getAllProviders);
+router.get('/requests', verifyToken('admin'), controller.getAllRequests);
+router.get('/invoices', verifyToken('admin'), controller.getAllInvoices);
 
 module.exports = router;
