@@ -1,21 +1,13 @@
+// router/index.js
 import { createRouter, createWebHistory } from 'vue-router';
-
-import Dashboard from '@/views/Dashboard.vue';
+import adminRoutes from './admin';
+import providerRoutes from './provider';
 
 const routes = [
-  {
-    path: '/admin',
-    component: () => import('@/layouts/AdminLayout.vue'),
-    children: [
-      { path: '', name: 'Dashboard', component: Dashboard },
-      { path: 'requests', component: () => import('@/views/RequestManagement.vue') },
-      { path: 'providers', component: () => import('@/views/ProviderManagement.vue') },
-      { path: 'farmers', component: () => import('@/views/FarmerManagement.vue') },
-      { path: 'invoices', component: () => import('@/views/InvoiceManagement.vue') },
-    ]
-  },
-  { path: '/login', component: () => import('@/views/Login.vue') },
-  { path: '/:pathMatch(.*)*', redirect: '/admin' }
+  ...adminRoutes,     // ✅ Mảng route từ admin.js
+  ...providerRoutes,  // ✅ Mảng route từ provider.js
+  { path: '/', redirect: '/provider/login' },
+  { path: '/:pathMatch(.*)*', redirect: '/provider/login' }
 ];
 
 export default createRouter({
