@@ -7,6 +7,13 @@ const ProviderSchema = new mongoose.Schema({
   phone: String,
   password: String,
   address: String,
+  location: {
+    province: String,
+    coordinates: {
+      lat: Number,
+      lng: Number
+    }
+  },
   services: [
     {
       name: { type: String, required: true },

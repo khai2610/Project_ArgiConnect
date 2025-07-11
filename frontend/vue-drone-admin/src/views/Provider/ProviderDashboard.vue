@@ -5,42 +5,149 @@
         <div v-if="loading" class="text-gray-500">Đang tải dữ liệu...</div>
 
         <div v-else>
-            <div class="grid grid-cols-1 md:grid-cols-3 gap-4">
+            <!-- Thống kê chung -->
+            <div class="grid grid-cols-1 md:grid-cols-3 gap-4 mb-8">
                 <div class="bg-white shadow-md rounded-xl p-4">
                     <h3 class="text-lg font-semibold text-gray-700">🏢 Công ty</h3>
-                    <p class="text-gray-900">{{ provider.company_name }}</p>
+                    <p class="text-gray-900">{{ provider.company_name || '---' }}</p>
                 </div>
                 <div class="bg-white shadow-md rounded-xl p-4">
                     <h3 class="text-lg font-semibold text-gray-700">🛠 Số dịch vụ</h3>
-                    <p class="text-gray-900">{{ provider.services.length }}</p>
+                    <p class="text-gray-900">{{ provider.services?.length ?? 0 }}</p>
                 </div>
                 <div class="bg-white shadow-md rounded-xl p-4">
                     <h3 class="text-lg font-semibold text-gray-700">📋 Tổng yêu cầu</h3>
                     <p class="text-gray-900">{{ requestCount }}</p>
                 </div>
             </div>
+
+            <!-- 📍 Bản đồ -->
+            <div class="bg-white shadow-md rounded-xl p-4 mb-8">
+                <h3 class="text-lg font-semibold text-gray-700 mb-2">📍 Vị trí nhà cung cấp</h3>
+                <LMap v-if="center" :zoom="13" :center="center" style="height: 400px; width: 100%">
+                    <LTileLayer url="https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png"
+                        attribution="&copy; OpenStreetMap contributors" />
+                    <LMarker :lat-lng="center" />
+                </LMap>
+                <p v-else class="text-gray-500 italic">Không có thông tin vị trí</p>
+            </div>
+
+            <!-- 📊 Thống kê linh hoạt -->
+            <div class="flex justify-between items-center mb-4">
+                <h3 class="text-xl font-bold">📈 Thống kê theo {{ selectedRangeLabel }}</h3>
+                <select v-model="selectedRange" class="border rounded px-3 py-1 text-sm">
+                    <option value="week">Tuần này</option>
+                    <option value="month">Tháng này</option>
+                    <option value="year">Năm nay</option>
+                </select>
+            </div>
+
+            <!-- Bảng thống kê -->
+            <div class="grid grid-cols-1 md:grid-cols-3 gap-4 mb-6">
+                <div class="bg-white p-4 rounded shadow">
+                    <h4 class="text-gray-600">📋 Yêu cầu</h4>
+                    <p class="text-xl font-bold">{{ stats.requests }}</p>
+                </div>
+                <div class="bg-white p-4 rounded shadow">
+                    <h4 class="text-gray-600">🧾 Hóa đơn</h4>
+                    <p class="text-xl font-bold">{{ stats.invoices }}</p>
+                </div>
+                <div class="bg-white p-4 rounded shadow">
+                    <h4 class="text-gray-600">💰 Đã thanh toán</h4>
+                    <p class="text-xl font-bold">{{ stats.paidInvoices }}</p>
+                </div>
+            </div>
+
+            <!-- Biểu đồ -->
+            <div class="bg-white p-4 rounded shadow">
+                <Bar :data="chartData" :options="chartOptions" />
+            </div>
         </div>
     </div>
 </template>
 
 <script setup>
-import { ref, onMounted } from 'vue';
+import { ref, onMounted, watch, computed } from 'vue';
 import axios from 'axios';
+import { LMap, LTileLayer, LMarker } from '@vue-leaflet/vue-leaflet';
+import 'leaflet/dist/leaflet.css';
+import * as L from 'leaflet';
 
-const provider = ref({});
-const requestCount = ref(0);
-const loading = ref(true);
+import { Bar } from 'vue-chartjs';
+import {
+    Chart as ChartJS,
+    Title, Tooltip, Legend,
+    CategoryScale, LinearScale, BarElement
+} from 'chart.js';
+
+ChartJS.register(Title, Tooltip, Legend, CategoryScale, LinearScale, BarElement);
+
+// Fix icon Leaflet (Vite)
+delete L.Icon.Default.prototype._getIconUrl;
+L.Icon.Default.mergeOptions({
+    iconRetinaUrl: new URL('leaflet/dist/images/marker-icon-2x.png', import.meta.url).href,
+    iconUrl: new URL('leaflet/dist/images/marker-icon.png', import.meta.url).href,
+    shadowUrl: new URL('leaflet/dist/images/marker-shadow.png', import.meta.url).href
+});
 
 const token = localStorage.getItem('token');
 const headers = { Authorization: `Bearer ${token}` };
 
+const provider = ref({
+    services: [],
+    company_name: '',
+    location: {
+        coordinates: { lat: null, lng: null }
+    }
+});
+const requestCount = ref(0);
+const loading = ref(true);
+const center = ref(null);
+
+// 📊 Thống kê
+const selectedRange = ref('month');
+const stats = ref({ requests: 0, invoices: 0, paidInvoices: 0 });
+const chartData = ref({ labels: [], datasets: [] });
+const chartOptions = {
+    responsive: true,
+    plugins: {
+        legend: { position: 'top' }
+    }
+};
+const selectedRangeLabel = computed(() => {
+    switch (selectedRange.value) {
+        case 'week': return 'tuần';
+        case 'month': return 'tháng';
+        case 'year': return 'năm';
+        default: return '';
+    }
+});
+
+const loadProviderData = async () => {
+    const profileRes = await axios.get('http://localhost:5000/api/provider/profile', { headers });
+    provider.value = profileRes.data;
+
+    const loc = profileRes.data?.location?.coordinates;
+    if (loc?.lat && loc?.lng) {
+        center.value = [loc.lat, loc.lng];
+    }
+
+    const requestRes = await axios.get('http://localhost:5000/api/provider/requests', { headers });
+    requestCount.value = requestRes.data.length;
+};
+
+const loadStats = async () => {
+    const res = await axios.get(`http://localhost:5000/api/provider/stats?range=${selectedRange.value}`, { headers });
+    stats.value = res.data.summary;
+    chartData.value = res.data.chart;
+};
+
+watch(selectedRange, loadStats);
+
 onMounted(async () => {
     try {
-        const profileRes = await axios.get('http://localhost:5000/api/provider/profile', { headers });
-        provider.value = profileRes.data;
-
-        const requestRes = await axios.get('http://localhost:5000/api/provider/requests', { headers });
-        requestCount.value = requestRes.data.length;
+        await loadProviderData();
+        await loadStats();
     } catch (err) {
         console.error('Lỗi khi tải dashboard:', err);
     } finally {

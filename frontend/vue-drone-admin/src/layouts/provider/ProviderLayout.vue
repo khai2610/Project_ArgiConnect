@@ -1,8 +1,8 @@
 <template>
     <div class="flex min-h-screen">
-        <!-- Sidebar -->
-        <aside class="w-64 bg-slate-800 text-white p-6 flex flex-col justify-between">
-            <!-- Top: Menu -->
+        <!-- Sidebar cố định -->
+        <aside class="w-64 h-screen fixed top-0 left-0 bg-slate-800 text-white p-6 flex flex-col justify-between">
+            <!-- Menu -->
             <div>
                 <h1 class="text-2xl font-bold mb-6">Provider</h1>
                 <nav class="space-y-2">
@@ -15,20 +15,20 @@
                 </nav>
             </div>
 
-            <!-- Bottom: Logout -->
-            <button @click="logout" class="w-full text-left px-3 py-2 rounded transition text-sm font-medium
-         text-red-400 hover:bg-red-600 hover:text-white">
+            <!-- Logout -->
+            <button @click="logout" class="block w-full px-3 py-2 rounded transition text-sm font-medium
+            text-red-400 hover:bg-red-600 hover:text-white">
                 🚪 Đăng xuất
             </button>
-
         </aside>
 
-        <!-- Main Content -->
-        <main class="flex-1 p-6 bg-gray-50">
+        <!-- Main Content dịch sang phải -->
+        <main class="ml-64 flex-1 p-6 bg-gray-50">
             <router-view />
         </main>
     </div>
 </template>
+  
 
 <script setup>
 import { useRouter, useRoute } from 'vue-router';

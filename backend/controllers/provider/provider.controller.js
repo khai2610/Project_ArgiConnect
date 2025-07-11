@@ -7,12 +7,14 @@ exports.getProfile = async (req, res) => {
 };
 
 exports.updateProfile = async (req, res) => {
-  const { company_name, phone, address, service_types } = req.body;
+  const { company_name, phone, address, service_types, location } = req.body;
+
   const updated = await Provider.findByIdAndUpdate(
     req.user.id,
-    { company_name, phone, address, service_types },
+    { company_name, phone, address, service_types, location }, // 👈 thêm location
     { new: true, runValidators: true }
   ).select('-password');
 
   res.json({ message: 'Cập nhật thành công', provider: updated });
 };
+
