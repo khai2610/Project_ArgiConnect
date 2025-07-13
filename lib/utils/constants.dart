@@ -17,7 +17,11 @@ const String providerRequestEndpoint = '$baseUrl/provider/requests';
 const String providerServiceEndpoint = '$baseUrl/provider/services';
 const String providerInvoiceEndpoint = '$baseUrl/provider/invoices';
 
-
+// CHAT
+const String chatBaseUrl = '$baseUrl/chat';
+String getChatMessagesUrl(String requestId) => '$chatBaseUrl/$requestId';
+const String chatConversationsUrl = chatBaseUrl;
+const String sendMessageUrl = chatBaseUrl;
 
 const String farmerRole = 'farmer';
 const String providerRole = 'provider';

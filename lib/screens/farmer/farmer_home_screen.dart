@@ -5,6 +5,7 @@ import 'my_requests_screen.dart';
 import 'farmer_profile_screen.dart';
 import 'approved_providers_screen.dart';
 import 'farmer_invoice_screen.dart';
+import '../chat_list_screen.dart';
 
 class FarmerHomeScreen extends StatefulWidget {
   final String token;
@@ -17,13 +18,19 @@ class FarmerHomeScreen extends StatefulWidget {
 class _FarmerHomeScreenState extends State<FarmerHomeScreen> {
   int _selectedIndex = 0;
 
-  void _logout() {
-    Navigator.pushAndRemoveUntil(
+  void _goToChat() {
+    Navigator.push(
       context,
-      MaterialPageRoute(builder: (_) => const LoginScreen()),
-      (route) => false,
+      MaterialPageRoute(
+        builder: (_) => ChatListScreen(
+          token: widget.token,
+          currentUserId: 'farmer_id_từ_token',
+          currentRole: 'farmer',
+        ),
+      ),
     );
   }
+
 
   void _onNavTap(int index) {
     setState(() => _selectedIndex = index);
@@ -67,8 +74,13 @@ class _FarmerHomeScreenState extends State<FarmerHomeScreen> {
           ],
         ),
         actions: [
-          IconButton(onPressed: _logout, icon: const Icon(Icons.logout)),
+          IconButton(
+            onPressed: _goToChat,
+            icon: const Icon(Icons.chat),
+            tooltip: 'Tin nhắn',
+          ),
         ],
+
       ),
       body: _buildMainContent(),
       bottomNavigationBar: BottomNavigationBar(

@@ -31,4 +31,6 @@ app.use('/api/public', require('./routes/public/public.route'));
 
 app.use('/api/admin', require('./routes/admin/admin.route'));
 
+app.use('/api/chat', require('./routes/chat.route'));
+
 module.exports = app;
