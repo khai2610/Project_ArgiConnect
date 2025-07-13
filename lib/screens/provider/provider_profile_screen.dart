@@ -2,7 +2,7 @@ import 'dart:convert';
 import 'package:flutter/material.dart';
 import 'package:http/http.dart' as http;
 import '../../utils/constants.dart';
-
+import '../auth/login_screen.dart';
 class ProviderProfileScreen extends StatefulWidget {
   final String token;
   const ProviderProfileScreen({super.key, required this.token});
@@ -19,6 +19,13 @@ class _ProviderProfileScreenState extends State<ProviderProfileScreen> {
   String phone = '';
   String email = '';
   String address = '';
+
+  void logout() {
+    Navigator.of(context).pushAndRemoveUntil(
+      MaterialPageRoute(builder: (_) => const LoginScreen()),
+      (route) => false,
+    );
+  }
 
   @override
   void initState() {
@@ -161,6 +168,15 @@ class _ProviderProfileScreenState extends State<ProviderProfileScreen> {
                         minimumSize: const Size.fromHeight(48),
                       ),
                     ),
+              const SizedBox(height: 12),
+              TextButton.icon(
+                onPressed: logout,
+                icon: const Icon(Icons.logout, color: Colors.red),
+                label: const Text(
+                  'Đăng xuất',
+                  style: TextStyle(color: Colors.red),
+                ),
+              ),
             ],
           ),
         ),

@@ -42,11 +42,15 @@ class _ChatListScreenState extends State<ChatListScreen> {
 
       if (res.statusCode == 200) {
         final data = json.decode(res.body) as List;
+
         setState(() {
-          conversations =
-              data.map((e) => ChatConversation.fromJson(e)).toList();
+          conversations = data.map((e) {
+            print('📦 raw: $e');
+            return ChatConversation.fromJson(e);
+          }).toList();
           isLoading = false;
         });
+
       } else {
         print('❌ Lỗi API: ${res.statusCode} - ${res.body}');
       }

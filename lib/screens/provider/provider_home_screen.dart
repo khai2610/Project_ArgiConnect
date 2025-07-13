@@ -4,6 +4,7 @@ import 'request_list_screen.dart';
 import 'service_manage_screen.dart';
 import 'invoice_screen.dart';
 import 'provider_profile_screen.dart';
+import 'provider_chat_list_screen.dart'; // ✅ Sửa import đúng
 
 class ProviderHomeScreen extends StatefulWidget {
   final String token;
@@ -16,11 +17,13 @@ class ProviderHomeScreen extends StatefulWidget {
 class _ProviderHomeScreenState extends State<ProviderHomeScreen> {
   int _selectedIndex = 0;
 
-  void _logout() {
-    Navigator.pushAndRemoveUntil(
+  void _goToChat() {
+    Navigator.push(
       context,
-      MaterialPageRoute(builder: (_) => const LoginScreen()),
-      (route) => false,
+      MaterialPageRoute(
+        builder: (_) => ProviderChatListScreen(
+            token: widget.token), // ✅ Đúng màn hình chat provider
+      ),
     );
   }
 
@@ -66,7 +69,11 @@ class _ProviderHomeScreenState extends State<ProviderHomeScreen> {
           ],
         ),
         actions: [
-          IconButton(onPressed: _logout, icon: const Icon(Icons.logout)),
+          IconButton(
+            onPressed: _goToChat,
+            icon: const Icon(Icons.chat),
+            tooltip: 'Tin nhắn',
+          ),
         ],
       ),
       body: _buildBody(),

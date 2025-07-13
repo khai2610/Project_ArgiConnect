@@ -2,7 +2,7 @@ import 'dart:convert';
 import 'package:flutter/material.dart';
 import 'package:http/http.dart' as http;
 import '../../utils/constants.dart';
-
+import '../auth/login_screen.dart';
 class FarmerProfileScreen extends StatefulWidget {
   final String token;
   const FarmerProfileScreen({super.key, required this.token});
@@ -22,6 +22,13 @@ class _FarmerProfileScreenState extends State<FarmerProfileScreen> {
   String province = '';
   double latitude = 0.0;
   double longitude = 0.0;
+
+  void logout() {
+    Navigator.of(context).pushAndRemoveUntil(
+      MaterialPageRoute(builder: (_) => const LoginScreen()),
+      (route) => false,
+    );
+  }
 
   @override
   void initState() {
@@ -201,6 +208,15 @@ class _FarmerProfileScreenState extends State<FarmerProfileScreen> {
                             ),
                             child:
                                 Text(isEditing ? 'Lưu thay đổi' : 'Chỉnh sửa'),
+                          ),
+                        ),
+                        const SizedBox(height: 12),
+                        TextButton.icon(
+                          onPressed: logout,
+                          icon: const Icon(Icons.logout, color: Colors.red),
+                          label: const Text(
+                            'Đăng xuất',
+                            style: TextStyle(color: Colors.red),
                           ),
                         ),
                       ],

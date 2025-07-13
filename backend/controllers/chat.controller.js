@@ -6,72 +6,84 @@ const Provider = require('../models/Provider');
 const Farmer = require('../models/Farmer');
 
 exports.getConversations = async (req, res) => {
-  try {
-    const userId = req.user.id;
-    const role = req.role;
+  const { id: userId, role } = req.user;
 
-    // Tìm các request mà user có tham gia (farmer hoặc provider)
-    const matchField = role === 'farmer' ? 'farmer_id' : 'provider_id';
-    const requests = await ServiceRequest.find({ [matchField]: userId });
-
-    const requestIds = requests.map(r => r._id.toString());
-
-    // Lấy tin nhắn mới nhất cho mỗi request_id
-    const latestMessages = await Message.aggregate([
-      { $match: { request_id: { $in: requestIds.map(id => new mongoose.Types.ObjectId(id)) } } },
-      {
-        $sort: { createdAt: -1 }
-      },
-      {
-        $group: {
-          _id: "$request_id",
-          last_message: { $first: "$content" },
-          updated_at: { $first: "$createdAt" }
-        }
+  const messages = await Message.aggregate([
+    {
+      $match: {
+        $or: [
+          { sender_id: new mongoose.Types.ObjectId(userId) },
+          { receiver_id: new mongoose.Types.ObjectId(userId) }
+        ]
       }
-    ]);
-
-    // Lấy thêm thông tin người đối thoại
-    const result = await Promise.all(latestMessages.map(async (item) => {
-      const request = requests.find(r => r._id.toString() === item._id.toString());
-      let partner = null;
-      let partnerName = '';
-
-      if (role === 'farmer') {
-        partner = await Provider.findById(request.provider_id).select('company_name');
-        partnerName = partner?.company_name || 'Nhà cung cấp';
-      } else {
-        partner = await Farmer.findById(request.farmer_id).select('name');
-        partnerName = partner?.name || 'Nông dân';
+    },
+    {
+      $sort: { createdAt: -1 }
+    },
+    {
+      $group: {
+        _id: {
+          $cond: [
+            { $eq: ["$sender_id", new mongoose.Types.ObjectId(userId)] },
+            "$receiver_id",
+            "$sender_id"
+          ]
+        },
+        last_message: { $first: "$content" },
+        updated_at: { $first: "$createdAt" }
       }
+    }
+  ]);
 
-      return {
-        request_id: item._id,
-        partner_name: partnerName,
-        last_message: item.last_message,
-        updated_at: item.updated_at
-      };
-    }));
+  const result = await Promise.all(messages.map(async (m) => {
+    const partner = role === 'farmer'
+      ? await Provider.findById(m._id).select('company_name')
+      : await Farmer.findById(m._id).select('name');
 
-    res.json(result);
-  } catch (err) {
-    console.error('Lỗi getConversations:', err);
-    res.status(500).json({ message: 'Lỗi lấy hội thoại', error: err.message });
-  }
+    return {
+      partner_id: m._id,
+      partner_name: partner?.company_name || partner?.name || 'Đối tác',
+      last_message: m.last_message,
+      updated_at: m.updated_at,
+      farmerId: role === 'farmer' ? userId : m._id,
+      providerId: role === 'provider' ? userId : m._id
+    };
+  }));
+
+  res.json(result);
 };
 
-exports.sendMessage = async (req, res) => {
+
+exports.getMessagesBetweenUsers = async (req, res) => {
+  const { farmerId, providerId } = req.params;
+
+  const messages = await Message.find({
+    $or: [
+      { sender_id: farmerId, receiver_id: providerId },
+      { sender_id: providerId, receiver_id: farmerId }
+    ]
+  }).sort({ createdAt: 1 });
+
+  res.json(messages);
+};
+
+
+exports.sendMessageBetweenUsers = async (req, res) => {
   try {
-    const { receiver_id, receiver_role, request_id, content } = req.body;
-    const sender_id = req.user.id;
-    const sender_role = req.role;
+    const { farmerId, providerId } = req.params;
+    const { content } = req.body;
+
+    const senderId = req.user.id;
+    const senderRole = req.role;
+
+    const receiverRole = senderRole === 'farmer' ? 'provider' : 'farmer';
+    const receiverId = senderRole === 'farmer' ? providerId : farmerId;
 
     const message = new Message({
-      sender_id,
-      sender_role,
-      receiver_id,
-      receiver_role,
-      request_id,
+      sender_id: senderId,
+      sender_role: senderRole,
+      receiver_id: receiverId,
+      receiver_role: receiverRole,
       content
     });
 
@@ -81,40 +93,3 @@ exports.sendMessage = async (req, res) => {
     res.status(500).json({ message: 'Lỗi gửi tin nhắn', error: err.message });
   }
 };
-
-exports.getMessages = async (req, res) => {
-  try {
-    const { request_id } = req.params;
-
-    const messages = await Message.find({ request_id })
-      .sort({ createdAt: 1 });
-
-    res.json(messages);
-  } catch (err) {
-    res.status(500).json({ message: 'Lỗi lấy tin nhắn', error: err.message });
-  }
-};
-
-exports.getMessagesBetweenUsers = async (req, res) => {
-  try {
-    const { farmerId, providerId } = req.params;
-
-    const messages = await Message.find({
-      $or: [
-        {
-          sender_id: new mongoose.Types.ObjectId(farmerId),
-          receiver_id: new mongoose.Types.ObjectId(providerId),
-        },
-        {
-          sender_id: new mongoose.Types.ObjectId(providerId),
-          receiver_id: new mongoose.Types.ObjectId(farmerId),
-        },
-      ]
-    }).sort({ createdAt: 1 });
-
-    res.json(messages);
-  } catch (err) {
-    res.status(500).json({ message: 'Lỗi lấy hội thoại', error: err.message });
-  }
-};
-

@@ -9,12 +9,8 @@ console.log('verifyToken(...):', verifyToken(['farmer']));                  // x
 console.log('typeof controller:', typeof controller); // phải là 'object'
 console.log('typeof controller.sendMessage:', typeof controller.sendMessage); // phải là 'function'
 
-router.post('/', verifyToken(['farmer', 'provider']), controller.sendMessage);
-
 router.get('/', verifyToken(['farmer', 'provider']), controller.getConversations);
-
 router.get('/between/:farmerId/:providerId', verifyToken(['farmer', 'provider']), controller.getMessagesBetweenUsers);
-
-router.get('/:request_id', verifyToken(['farmer', 'provider']), controller.getMessages);
+router.post('/between/:farmerId/:providerId', verifyToken(['farmer', 'provider']), controller.sendMessageBetweenUsers);
 
 module.exports = router;

@@ -67,21 +67,15 @@ class _ChatScreenState extends State<ChatScreen> {
   }
 
   Future<void> sendMessage(String content) async {
-    final receiverId =
-        widget.currentRole == 'farmer' ? widget.providerId : widget.farmerId;
-    final receiverRole = widget.currentRole == 'farmer' ? 'provider' : 'farmer';
+    final url = getChatBetweenUrl(widget.farmerId, widget.providerId);
 
     final res = await http.post(
-      Uri.parse(sendMessageUrl),
+      Uri.parse(url),
       headers: {
         'Content-Type': 'application/json',
         'Authorization': 'Bearer ${widget.token}',
       },
-      body: json.encode({
-        'receiver_id': receiverId,
-        'receiver_role': receiverRole,
-        'content': content,
-      }),
+      body: json.encode({'content': content}),
     );
 
     if (res.statusCode == 201) {
@@ -92,10 +86,11 @@ class _ChatScreenState extends State<ChatScreen> {
     }
   }
 
+
   @override
   Widget build(BuildContext context) {
     return Scaffold(
-      appBar: AppBar(title: const Text('Tin nhắn')),
+      appBar: AppBar(title: const Text('chat')),
       body: Column(
         children: [
           Expanded(

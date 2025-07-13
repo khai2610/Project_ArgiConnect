@@ -7,7 +7,7 @@ const MessageSchema = new mongoose.Schema({
   receiver_role: { type: String, enum: ['farmer', 'provider'], required: true },
 
   // 👇 request_id giờ là optional
-  request_id: { type: mongoose.Schema.Types.ObjectId, ref: 'ServiceRequest', default: null },
+  request_id: { type: mongoose.Schema.Types.ObjectId, ref: 'ServiceRequest', required: false,default: null },
 
   content: { type: String, required: true },
   read: { type: Boolean, default: false }

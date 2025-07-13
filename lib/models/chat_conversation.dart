@@ -15,10 +15,10 @@ class ChatConversation {
 
   factory ChatConversation.fromJson(Map<String, dynamic> json) {
     return ChatConversation(
-      farmerId: json['farmer_id'],
-      providerId: json['provider_id'],
+      farmerId: json['farmerId'],
+      providerId: json['providerId'],
       partnerName: json['partner_name'],
-      lastMessage: json['last_message'] ?? '',
+      lastMessage: json['last_message'],
       updatedAt: DateTime.parse(json['updated_at']),
     );
   }
