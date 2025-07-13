@@ -1,4 +1,6 @@
 import 'package:flutter/material.dart';
+import 'package:jwt_decoder/jwt_decoder.dart';
+
 import '../auth/login_screen.dart';
 import 'create_request_screen.dart';
 import 'my_requests_screen.dart';
@@ -17,6 +19,14 @@ class FarmerHomeScreen extends StatefulWidget {
 
 class _FarmerHomeScreenState extends State<FarmerHomeScreen> {
   int _selectedIndex = 0;
+  late String farmerId;
+
+  @override
+  void initState() {
+    super.initState();
+    final decoded = JwtDecoder.decode(widget.token);
+    farmerId = decoded['id']; // 👈 lấy id từ token
+  }
 
   void _goToChat() {
     Navigator.push(
@@ -24,13 +34,12 @@ class _FarmerHomeScreenState extends State<FarmerHomeScreen> {
       MaterialPageRoute(
         builder: (_) => ChatListScreen(
           token: widget.token,
-          currentUserId: 'farmer_id_từ_token',
+          currentUserId: farmerId,
           currentRole: 'farmer',
         ),
       ),
     );
   }
-
 
   void _onNavTap(int index) {
     setState(() => _selectedIndex = index);
@@ -39,7 +48,10 @@ class _FarmerHomeScreenState extends State<FarmerHomeScreen> {
   Widget _buildMainContent() {
     switch (_selectedIndex) {
       case 0:
-        return ApprovedProvidersScreen(token: widget.token);
+        return ApprovedProvidersScreen(
+          token: widget.token,
+          farmerId: farmerId, // ✅ truyền vào
+        );
       case 1:
         return CreateRequestScreen(token: widget.token);
       case 2:
@@ -56,7 +68,7 @@ class _FarmerHomeScreenState extends State<FarmerHomeScreen> {
   @override
   Widget build(BuildContext context) {
     return Scaffold(
-      backgroundColor: const Color(0xFFF7FDF7), // ✅ Làm nền nhạt hơn
+      backgroundColor: const Color(0xFFF7FDF7),
       appBar: AppBar(
         backgroundColor: Colors.green.shade700,
         title: Row(
@@ -80,7 +92,6 @@ class _FarmerHomeScreenState extends State<FarmerHomeScreen> {
             tooltip: 'Tin nhắn',
           ),
         ],
-
       ),
       body: _buildMainContent(),
       bottomNavigationBar: BottomNavigationBar(

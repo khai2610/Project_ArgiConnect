@@ -2,13 +2,16 @@ import 'package:flutter/material.dart';
 import 'dart:convert';
 import 'package:http/http.dart' as http;
 import '../../utils/constants.dart';
+import '../chat_screen.dart';
 
 class ProviderDetailScreen extends StatefulWidget {
+  final String farmerId;
   final String providerId;
   final String token;
 
   const ProviderDetailScreen({
     required this.providerId,
+    required this.farmerId,
     required this.token,
   });
 
@@ -129,6 +132,34 @@ class _ProviderDetailScreenState extends State<ProviderDetailScreen> {
                 Text('Email: ${provider['email'] ?? ''}'),
                 Text('SĐT: ${provider['phone'] ?? ''}'),
                 Text('Địa chỉ: ${provider['address'] ?? ''}'),
+                const SizedBox(height: 12),
+                ElevatedButton.icon(
+                  onPressed: () {
+                    Navigator.push(
+                      context,
+                      MaterialPageRoute(
+                        builder: (_) => ChatScreen(
+                          farmerId: widget.farmerId,
+                          providerId: widget.providerId,
+                          currentUserId: widget.farmerId,
+                          currentRole: farmerRole,
+                          token: widget.token,
+                        ),
+                      ),
+                    );
+                  },
+                  icon: const Icon(Icons.chat),
+                  label: const Text('Gửi tin nhắn'),
+                  style: ElevatedButton.styleFrom(
+                    backgroundColor: Colors.green.shade700,
+                    padding: const EdgeInsets.symmetric(
+                        horizontal: 20, vertical: 12),
+                    shape: RoundedRectangleBorder(
+                      borderRadius: BorderRadius.circular(12),
+                    ),
+                  ),
+                ),
+
                 const Divider(height: 32),
                 const Text(
                   'Dịch vụ cung cấp:',

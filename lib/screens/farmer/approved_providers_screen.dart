@@ -6,10 +6,12 @@ import 'provider_detail_screen.dart';
 
 class ApprovedProvidersScreen extends StatefulWidget {
   final String token;
+  final String farmerId;
 
   const ApprovedProvidersScreen({
     Key? key,
     required this.token,
+    required this.farmerId,
   }) : super(key: key);
 
   @override
@@ -109,6 +111,7 @@ class _ApprovedProvidersScreenState extends State<ApprovedProvidersScreen> {
                             MaterialPageRoute(
                               builder: (_) => ProviderDetailScreen(
                                 providerId: provider['_id'],
+                                farmerId: widget.farmerId,
                                 token: widget.token,
                               ),
                             ),

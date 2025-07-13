@@ -2,24 +2,23 @@ import 'dart:async';
 import 'dart:convert';
 import 'package:flutter/material.dart';
 import 'package:http/http.dart' as http;
-
 import '../models/chat_message.dart';
-import '../utils/constants.dart'; // ✅ dùng constants chuẩn
+import '../utils/constants.dart';
 
 class ChatScreen extends StatefulWidget {
-  final String requestId;
+  final String farmerId;
+  final String providerId;
   final String currentUserId;
   final String currentRole;
   final String token;
-  final String? receiverId; // bạn có thể truyền vào nếu biết từ trước
 
   const ChatScreen({
     super.key,
-    required this.requestId,
+    required this.farmerId,
+    required this.providerId,
     required this.currentUserId,
     required this.currentRole,
     required this.token,
-    this.receiverId, // optional
   });
 
   @override
@@ -45,38 +44,32 @@ class _ChatScreenState extends State<ChatScreen> {
   }
 
   void _startPolling() {
-    _pollingTimer = Timer.periodic(const Duration(seconds: 3), (timer) {
+    _pollingTimer = Timer.periodic(const Duration(seconds: 3), (_) {
       fetchMessages();
     });
   }
 
   Future<void> fetchMessages() async {
-    try {
-      final res = await http.get(
-        Uri.parse(getChatMessagesUrl(widget.requestId)),
-        headers: {
-          'Authorization': 'Bearer ${widget.token}',
-        },
-      );
+    final url = getChatBetweenUrl(widget.farmerId, widget.providerId);
+    final res = await http.get(
+      Uri.parse(url),
+      headers: {'Authorization': 'Bearer ${widget.token}'},
+    );
 
-      if (res.statusCode == 200) {
-        final data = json.decode(res.body) as List;
-        setState(() {
-          messages = data.map((e) => ChatMessage.fromJson(e)).toList();
-        });
-      } else {
-        print('❌ Lỗi fetchMessages: ${res.statusCode} - ${res.body}');
-      }
-    } catch (e) {
-      print('❌ Lỗi kết nối: $e');
+    if (res.statusCode == 200) {
+      final data = json.decode(res.body) as List;
+      setState(() {
+        messages = data.map((e) => ChatMessage.fromJson(e)).toList();
+      });
+    } else {
+      print('❌ Lỗi fetch: ${res.statusCode} - ${res.body}');
     }
   }
 
   Future<void> sendMessage(String content) async {
-    if (widget.receiverId == null) {
-      print('❗️Không có receiverId để gửi tin nhắn.');
-      return;
-    }
+    final receiverId =
+        widget.currentRole == 'farmer' ? widget.providerId : widget.farmerId;
+    final receiverRole = widget.currentRole == 'farmer' ? 'provider' : 'farmer';
 
     final res = await http.post(
       Uri.parse(sendMessageUrl),
@@ -85,18 +78,17 @@ class _ChatScreenState extends State<ChatScreen> {
         'Authorization': 'Bearer ${widget.token}',
       },
       body: json.encode({
-        'request_id': widget.requestId,
-        'receiver_id': widget.receiverId,
-        'receiver_role': widget.currentRole == 'farmer' ? 'provider' : 'farmer',
+        'receiver_id': receiverId,
+        'receiver_role': receiverRole,
         'content': content,
       }),
     );
 
     if (res.statusCode == 201) {
       _controller.clear();
-      fetchMessages(); // load lại
+      fetchMessages();
     } else {
-      print('❌ Gửi tin nhắn lỗi: ${res.statusCode} - ${res.body}');
+      print('❌ Lỗi gửi: ${res.statusCode} - ${res.body}');
     }
   }
 
@@ -117,10 +109,9 @@ class _ChatScreenState extends State<ChatScreen> {
                   alignment:
                       isMe ? Alignment.centerRight : Alignment.centerLeft,
                   child: Container(
-                    padding:
-                        const EdgeInsets.symmetric(vertical: 6, horizontal: 12),
                     margin:
                         const EdgeInsets.symmetric(vertical: 4, horizontal: 12),
+                    padding: const EdgeInsets.all(10),
                     decoration: BoxDecoration(
                       color: isMe ? Colors.green[100] : Colors.grey[300],
                       borderRadius: BorderRadius.circular(12),
@@ -131,9 +122,9 @@ class _ChatScreenState extends State<ChatScreen> {
               },
             ),
           ),
-          const Divider(height: 1),
+          Divider(height: 1),
           Padding(
-            padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 6),
+            padding: const EdgeInsets.all(8),
             child: Row(
               children: [
                 Expanded(
@@ -150,7 +141,7 @@ class _ChatScreenState extends State<ChatScreen> {
                       sendMessage(_controller.text.trim());
                     }
                   },
-                )
+                ),
               ],
             ),
           )

@@ -1,4 +1,5 @@
 // controllers/chat.controller.js
+const mongoose = require('mongoose');
 const Message = require('../models/Message');
 const ServiceRequest = require('../models/ServiceRequest');
 const Provider = require('../models/Provider');
@@ -17,7 +18,7 @@ exports.getConversations = async (req, res) => {
 
     // Lấy tin nhắn mới nhất cho mỗi request_id
     const latestMessages = await Message.aggregate([
-      { $match: { request_id: { $in: requestIds.map(id => new require('mongoose').Types.ObjectId(id)) } } },
+      { $match: { request_id: { $in: requestIds.map(id => new mongoose.Types.ObjectId(id)) } } },
       {
         $sort: { createdAt: -1 }
       },
@@ -93,3 +94,27 @@ exports.getMessages = async (req, res) => {
     res.status(500).json({ message: 'Lỗi lấy tin nhắn', error: err.message });
   }
 };
+
+exports.getMessagesBetweenUsers = async (req, res) => {
+  try {
+    const { farmerId, providerId } = req.params;
+
+    const messages = await Message.find({
+      $or: [
+        {
+          sender_id: new mongoose.Types.ObjectId(farmerId),
+          receiver_id: new mongoose.Types.ObjectId(providerId),
+        },
+        {
+          sender_id: new mongoose.Types.ObjectId(providerId),
+          receiver_id: new mongoose.Types.ObjectId(farmerId),
+        },
+      ]
+    }).sort({ createdAt: 1 });
+
+    res.json(messages);
+  } catch (err) {
+    res.status(500).json({ message: 'Lỗi lấy hội thoại', error: err.message });
+  }
+};
+

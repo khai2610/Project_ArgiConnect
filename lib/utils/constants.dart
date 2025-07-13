@@ -19,8 +19,11 @@ const String providerInvoiceEndpoint = '$baseUrl/provider/invoices';
 
 // CHAT
 const String chatBaseUrl = '$baseUrl/chat';
+
 String getChatMessagesUrl(String requestId) => '$chatBaseUrl/$requestId';
 const String chatConversationsUrl = chatBaseUrl;
+
+String getChatBetweenUrl(String farmerId, String providerId) =>'$chatBaseUrl/between/$farmerId/$providerId';
 const String sendMessageUrl = chatBaseUrl;
 
 const String farmerRole = 'farmer';

@@ -13,6 +13,8 @@ router.post('/', verifyToken(['farmer', 'provider']), controller.sendMessage);
 
 router.get('/', verifyToken(['farmer', 'provider']), controller.getConversations);
 
+router.get('/between/:farmerId/:providerId', verifyToken(['farmer', 'provider']), controller.getMessagesBetweenUsers);
+
 router.get('/:request_id', verifyToken(['farmer', 'provider']), controller.getMessages);
 
 module.exports = router;

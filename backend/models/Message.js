@@ -1,4 +1,3 @@
-// models/Message.js
 const mongoose = require('mongoose');
 
 const MessageSchema = new mongoose.Schema({
@@ -7,7 +6,8 @@ const MessageSchema = new mongoose.Schema({
   receiver_id: { type: mongoose.Schema.Types.ObjectId, required: true },
   receiver_role: { type: String, enum: ['farmer', 'provider'], required: true },
 
-  request_id: { type: mongoose.Schema.Types.ObjectId, ref: 'ServiceRequest' }, // liên kết với yêu cầu
+  // 👇 request_id giờ là optional
+  request_id: { type: mongoose.Schema.Types.ObjectId, ref: 'ServiceRequest', default: null },
 
   content: { type: String, required: true },
   read: { type: Boolean, default: false }

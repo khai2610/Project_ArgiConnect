@@ -1,10 +1,9 @@
 import 'dart:convert';
 import 'package:flutter/material.dart';
 import 'package:http/http.dart' as http;
-
+import '../utils/constants.dart';
 import '../models/chat_conversation.dart';
-import '../screens/chat_screen.dart';
-import '../utils/constants.dart'; // ✅ import constants chứa URL API
+import 'chat_screen.dart';
 
 class ChatListScreen extends StatefulWidget {
   final String token;
@@ -63,13 +62,18 @@ class _ChatListScreenState extends State<ChatListScreen> {
       body: isLoading
           ? const Center(child: CircularProgressIndicator())
           : conversations.isEmpty
-              ? const Center(child: Text("Không có cuộc hội thoại nào"))
+              ? const Center(child: Text("Không có cuộc trò chuyện nào"))
               : ListView.builder(
                   itemCount: conversations.length,
                   itemBuilder: (ctx, i) {
                     final convo = conversations[i];
+
+                    final isFarmer = widget.currentRole == 'farmer';
+                    final partnerId =
+                        isFarmer ? convo.providerId : convo.farmerId;
+
                     return ListTile(
-                      leading: const CircleAvatar(child: Icon(Icons.chat)),
+                      leading: const CircleAvatar(child: Icon(Icons.person)),
                       title: Text(convo.partnerName),
                       subtitle: Text(convo.lastMessage),
                       trailing: Text(
@@ -81,7 +85,8 @@ class _ChatListScreenState extends State<ChatListScreen> {
                           context,
                           MaterialPageRoute(
                             builder: (_) => ChatScreen(
-                              requestId: convo.requestId,
+                              farmerId: convo.farmerId,
+                              providerId: convo.providerId,
                               currentUserId: widget.currentUserId,
                               currentRole: widget.currentRole,
                               token: widget.token,
