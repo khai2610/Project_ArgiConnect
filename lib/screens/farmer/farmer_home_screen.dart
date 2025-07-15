@@ -1,7 +1,5 @@
 import 'package:flutter/material.dart';
 import 'package:jwt_decoder/jwt_decoder.dart';
-
-import '../auth/login_screen.dart';
 import 'create_request_screen.dart';
 import 'my_requests_screen.dart';
 import 'farmer_profile_screen.dart';

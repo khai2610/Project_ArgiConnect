@@ -4,6 +4,7 @@ import 'package:google_maps_flutter/google_maps_flutter.dart';
 import 'package:geolocator/geolocator.dart';
 import 'package:http/http.dart' as http;
 import '../../utils/constants.dart';
+import 'provider_map_screen.dart';
 import 'request_detail_screen.dart';
 
 class RequestListScreen extends StatefulWidget {
@@ -16,6 +17,13 @@ class RequestListScreen extends StatefulWidget {
 
 class _RequestListScreenState extends State<RequestListScreen> {
   List<dynamic> requests = [];
+  List<dynamic> assignedRequests = [];
+  List<dynamic> openRequests = [];
+  List<dynamic> acceptedRequests = [];
+  List<dynamic> completedRequests = [];
+
+  int completedToday = 0;
+  int revenueToday = 0;
   bool isLoading = true;
   Position? _currentPosition;
   GoogleMapController? _mapController;
@@ -26,6 +34,7 @@ class _RequestListScreenState extends State<RequestListScreen> {
     super.initState();
     _getCurrentLocation();
     fetchRequests();
+    fetchSummary();
   }
 
   Future<void> _getCurrentLocation() async {
@@ -75,16 +84,49 @@ class _RequestListScreenState extends State<RequestListScreen> {
       if (res.statusCode == 200) {
         final data = json.decode(res.body);
         if (data is List) {
-          setState(() {
-            requests = data;
-            _setMarkers();
-          });
+          requests = data;
+
+          assignedRequests = requests
+              .where(
+                  (r) => r['provider_id'] != null && r['status'] == 'PENDING')
+              .toList();
+
+          openRequests = requests
+              .where(
+                  (r) => r['provider_id'] == null && r['status'] == 'PENDING')
+              .toList();
+
+          acceptedRequests =
+              requests.where((r) => r['status'] == 'ACCEPTED').toList();
+
+          completedRequests =
+              requests.where((r) => r['status'] == 'COMPLETED').toList();
+
+          _setMarkers();
         }
       }
     } finally {
       setState(() => isLoading = false);
     }
   }
+
+  Future<void> fetchSummary() async {
+    final res = await http.get(
+      Uri.parse(providerSummaryEndpoint),
+      headers: {'Authorization': 'Bearer ${widget.token}'},
+    );
+    if (res.statusCode == 200) {
+      final json = jsonDecode(res.body);
+      setState(() {
+        completedToday = json['completedToday'] ?? 0;
+        revenueToday = json['revenueToday'] ?? 0;
+      });
+    } else {
+      debugPrint('Lỗi khi gọi summary: ${res.statusCode} - ${res.body}');
+    }
+  }
+
+
 
   void _setMarkers() {
     _markers.clear();
@@ -100,7 +142,10 @@ class _RequestListScreenState extends State<RequestListScreen> {
 
         final marker = Marker(
           markerId: MarkerId(id),
-          position: LatLng(loc['lat'], loc['lng']),
+          position: LatLng(
+            (loc['lat'] as num).toDouble(),
+            (loc['lng'] as num).toDouble(),
+          ),
           icon: _getMarkerColor(status),
           infoWindow: InfoWindow(
             title: '$crop - $service',
@@ -112,6 +157,7 @@ class _RequestListScreenState extends State<RequestListScreen> {
       }
     }
   }
+
 
   double _parseArea(dynamic raw) {
     if (raw == null) return 0.0;
@@ -217,78 +263,245 @@ class _RequestListScreenState extends State<RequestListScreen> {
           IconButton(icon: const Icon(Icons.refresh), onPressed: fetchRequests),
         ],
       ),
-      body: Column(
-        children: [
-          Padding(
-            padding: const EdgeInsets.all(12),
-            child: ClipRRect(
-              borderRadius: BorderRadius.circular(16),
-              child: Container(
-                height: 250,
-                decoration: BoxDecoration(
-                  border: Border.all(color: Colors.green.shade700, width: 1.5),
-                  borderRadius: BorderRadius.circular(16),
-                  boxShadow: const [
-                    BoxShadow(
-                        color: Colors.black12,
-                        blurRadius: 6,
-                        offset: Offset(0, 4))
-                  ],
-                ),
-                child: GoogleMap(
-                  initialCameraPosition:
-                      CameraPosition(target: initialPosition, zoom: 13),
-                  myLocationEnabled: true,
-                  myLocationButtonEnabled: true,
-                  markers: Set<Marker>.of(_markers.values),
-                  onMapCreated: (controller) => _mapController = controller,
-                ),
+      body: isLoading
+          ? const Center(child: CircularProgressIndicator())
+          : RefreshIndicator(
+              onRefresh: fetchRequests,
+              child: ListView(
+                children: [
+                  _buildTodaySummary(),
+                  _buildAssignedRequests(),
+                  _buildMapCard(initialPosition),
+                  _buildAcceptedRequests(),
+                  _buildCompletedRequests(),
+                  _buildRequestLists(),
+                ],
               ),
             ),
-          ),
-          Expanded(
-            child: isLoading
-                ? const Center(child: CircularProgressIndicator())
-                : RefreshIndicator(
-                    onRefresh: fetchRequests,
-                    child: ListView.builder(
-                      itemCount: requests.length,
-                      itemBuilder: (context, index) {
-                        final req = requests[index];
-                        final crop = req['crop_type'] ?? '---';
-                        final service = req['service_type'] ?? '---';
-                        final area = _parseArea(req['area_ha']);
-                        final date = req['preferred_date'] != null
-                            ? DateTime.parse(req['preferred_date'])
-                                .toLocal()
-                                .toString()
-                                .split(' ')[0]
-                            : '---';
-                        return Card(
-                          margin: const EdgeInsets.symmetric(
-                              horizontal: 16, vertical: 8),
-                          shape: RoundedRectangleBorder(
-                              borderRadius: BorderRadius.circular(16)),
-                          child: ListTile(
-                            title: Text('$crop - $service'),
-                            subtitle: Column(
-                              crossAxisAlignment: CrossAxisAlignment.start,
-                              children: [
-                                Text('Diện tích: $area ha'),
-                                Text('Ngày thực hiện: $date'),
-                              ],
-                            ),
-                            trailing:
-                                const Icon(Icons.arrow_forward_ios, size: 16),
-                            onTap: () => _showRequestInfo(req),
-                          ),
-                        );
-                      },
-                    ),
+    );
+  }
+
+  Widget _buildTodaySummary() {
+    return Card(
+      margin: const EdgeInsets.all(12),
+      shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12)),
+      child: Padding(
+        padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 12),
+        child: Row(
+          mainAxisAlignment: MainAxisAlignment.spaceEvenly,
+          children: [
+            Expanded(
+              child: Column(
+                children: [
+                  Row(
+                    mainAxisAlignment: MainAxisAlignment.center,
+                    children: const [
+                      Icon(Icons.task_alt, color: Colors.green, size: 18),
+                      SizedBox(width: 6),
+                      Text('Dịch vụ hôm nay',
+                          style: TextStyle(fontWeight: FontWeight.bold)),
+                    ],
                   ),
-          ),
-        ],
+                  const SizedBox(height: 4),
+                  Text('$completedToday', style: const TextStyle(fontSize: 16)),
+                ],
+              ),
+            ),
+            Expanded(
+              child: Column(
+                children: [
+                  Row(
+                    mainAxisAlignment: MainAxisAlignment.center,
+                    children: const [
+                      Icon(Icons.attach_money, color: Colors.orange, size: 18),
+                      SizedBox(width: 6),
+                      Text('Doanh thu hôm nay',
+                          style: TextStyle(fontWeight: FontWeight.bold)),
+                    ],
+                  ),
+                  const SizedBox(height: 4),
+                  Text('${revenueToday}đ',
+                      style: const TextStyle(fontSize: 16)),
+                ],
+              ),
+            ),
+          ],
+        ),
       ),
     );
   }
+
+  Widget _buildAssignedRequests() {
+    if (assignedRequests.isEmpty) {
+      return Padding(
+        padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 8),
+        child: Container(
+          padding: const EdgeInsets.all(16),
+          decoration: BoxDecoration(
+            color: Colors.orange.shade50,
+            border: Border.all(color: Colors.orange),
+            borderRadius: BorderRadius.circular(12),
+          ),
+          child: Row(
+            children: const [
+              Icon(Icons.info_outline, color: Colors.orange),
+              SizedBox(width: 8),
+              Expanded(child: Text('Hiện tại không có yêu cầu được chỉ định.')),
+            ],
+          ),
+        ),
+      );
+    }
+
+    return Column(
+      crossAxisAlignment: CrossAxisAlignment.start,
+      children: [
+        const Padding(
+          padding: EdgeInsets.symmetric(horizontal: 16, vertical: 8),
+          child: Text(
+            '📌 Yêu cầu được chỉ định',
+            style: TextStyle(fontWeight: FontWeight.bold, fontSize: 16),
+          ),
+        ),
+        ...assignedRequests.map((req) => _buildRequestCard(req)).toList(),
+      ],
+    );
+  }
+
+  Widget _buildMapCard(LatLng initialPosition) {
+    return Padding(
+      padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 8),
+      child: ElevatedButton.icon(
+        style: ElevatedButton.styleFrom(
+          backgroundColor: Colors.green.shade700,
+          padding: const EdgeInsets.symmetric(vertical: 12),
+        ),
+        icon: const Icon(Icons.map),
+        label: const Text('Xem yêu cầu trên bản đồ'),
+        onPressed: () {
+          Navigator.push(
+            context,
+            MaterialPageRoute(
+              builder: (_) => ProviderMapScreen(token: widget.token),
+            ),
+          );
+        },
+      ),
+    );
+  }
+
+  Widget _buildRequestLists() {
+      return Column(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
+          if (assignedRequests.isNotEmpty) ...[
+            const Padding(
+              padding: EdgeInsets.symmetric(horizontal: 16, vertical: 8),
+              child: Text('📌 Yêu cầu chỉ định',
+                  style: TextStyle(fontWeight: FontWeight.bold)),
+            ),
+            ...assignedRequests.map(_buildRequestCard),
+          ],
+          if (openRequests.isNotEmpty) ...[
+            const Padding(
+              padding: EdgeInsets.symmetric(horizontal: 16, vertical: 8),
+              child: Text('📂 Yêu cầu tự do',
+                  style: TextStyle(fontWeight: FontWeight.bold)),
+            ),
+            ...openRequests.map(_buildRequestCard),
+          ],
+        ],
+      );
+    }
+
+  Widget _buildRequestCard(dynamic req) {
+    final crop = req['crop_type'] ?? '---';
+    final service = req['service_type'] ?? '---';
+    final area = _parseArea(req['area_ha']);
+    final date = req['preferred_date'] != null
+        ? DateTime.parse(req['preferred_date'])
+            .toLocal()
+            .toString()
+            .split(' ')[0]
+        : '---';
+
+    final status = req['status'];
+    final isNavigatable =
+        status == 'PENDING' || status == 'ACCEPTED' || status == 'COMPLETED';
+
+
+    return Card(
+      margin: const EdgeInsets.symmetric(horizontal: 16, vertical: 8),
+      shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(16)),
+      child: ListTile(
+        title: Text('$crop - $service'),
+        subtitle: Column(
+          crossAxisAlignment: CrossAxisAlignment.start,
+          children: [
+            Text('Diện tích: $area ha'),
+            Text('Ngày thực hiện: $date'),
+          ],
+        ),
+        trailing: isNavigatable
+            ? const Icon(Icons.arrow_forward_ios, size: 16)
+            : null,
+        onTap: isNavigatable
+            ? () async {
+                final result = await Navigator.push(
+                  context,
+                  MaterialPageRoute(
+                    builder: (_) => RequestDetailScreen(
+                      token: widget.token,
+                      requestId: req['_id'],
+                    ),
+                  ),
+                );
+
+                if (result == true) {
+                  fetchRequests();
+                  fetchSummary();
+        // ✅ cập nhật lại danh sách & thống kê
+                }
+              }
+            : null,
+      ),
+    );
+  }
+
+  Widget _buildAcceptedRequests() {
+      if (acceptedRequests.isEmpty) return const SizedBox.shrink();
+
+      return Column(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
+          const Padding(
+            padding: EdgeInsets.symmetric(horizontal: 16, vertical: 8),
+            child: Text(
+              '✅ Yêu cầu đã nhận',
+              style: TextStyle(fontWeight: FontWeight.bold, fontSize: 16),
+            ),
+          ),
+          ...acceptedRequests.map((req) => _buildRequestCard(req)).toList(),
+        ],
+      );
+    }
+
+  Widget _buildCompletedRequests() {
+    if (completedRequests.isEmpty) return const SizedBox.shrink();
+
+    return Column(
+      crossAxisAlignment: CrossAxisAlignment.start,
+      children: [
+        const Padding(
+          padding: EdgeInsets.symmetric(horizontal: 16, vertical: 8),
+          child: Text(
+            '✅ Yêu cầu đã hoàn thành',
+            style: TextStyle(fontWeight: FontWeight.bold, fontSize: 16),
+          ),
+        ),
+        ...completedRequests.map((req) => _buildRequestCard(req)).toList(),
+      ],
+    );
+  }
+
 }

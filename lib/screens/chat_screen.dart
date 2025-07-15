@@ -11,6 +11,7 @@ class ChatScreen extends StatefulWidget {
   final String currentUserId;
   final String currentRole;
   final String token;
+  final String receiverName;
 
   const ChatScreen({
     super.key,
@@ -19,6 +20,7 @@ class ChatScreen extends StatefulWidget {
     required this.currentUserId,
     required this.currentRole,
     required this.token,
+    required this.receiverName,
   });
 
   @override
@@ -90,7 +92,9 @@ class _ChatScreenState extends State<ChatScreen> {
   @override
   Widget build(BuildContext context) {
     return Scaffold(
-      appBar: AppBar(title: const Text('chat')),
+      appBar: AppBar(
+        title: Text('Chat với ${widget.receiverName}'), // ✅
+      ),
       body: Column(
         children: [
           Expanded(

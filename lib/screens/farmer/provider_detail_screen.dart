@@ -144,6 +144,7 @@ class _ProviderDetailScreenState extends State<ProviderDetailScreen> {
                           currentUserId: widget.farmerId,
                           currentRole: farmerRole,
                           token: widget.token,
+                          receiverName: provider['company_name'] ?? 'Đối tác',
                         ),
                       ),
                     );

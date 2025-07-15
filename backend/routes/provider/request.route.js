@@ -6,5 +6,6 @@ const { verifyToken } = require('../../middlewares/auth.middleware');
 router.get('/', verifyToken('provider'), controller.getAllRequests);
 router.patch('/:id/accept', verifyToken('provider'), controller.acceptRequest);
 router.patch('/:id/complete', verifyToken('provider'), controller.completeRequest);
+router.get('/summary', verifyToken('provider'), controller.getProviderSummary);
 
 module.exports = router;

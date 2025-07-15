@@ -75,7 +75,7 @@ class _ProviderChatScreenState extends State<ProviderChatScreen> {
   @override
   Widget build(BuildContext context) {
     return Scaffold(
-      appBar: AppBar(title: Text('Chat với ${widget.receiverName}')),
+      appBar: AppBar(title: Text('${widget.receiverName}')),
       body: Column(
         children: [
           Expanded(

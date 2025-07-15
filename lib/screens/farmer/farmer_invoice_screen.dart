@@ -95,17 +95,22 @@ class _FarmerInvoiceScreenState extends State<FarmerInvoiceScreen> {
               Text('Ghi chú: ${invoice['note']}'),
           ],
         ),
-        onTap: () {
-          Navigator.push(
-            context,
-            MaterialPageRoute(
-              builder: (_) => InvoiceDetailScreen(
-                invoice: invoice,
-                token: widget.token,
+        onTap: () async {
+            final result = await Navigator.push(
+              context,
+              MaterialPageRoute(
+                builder: (_) => InvoiceDetailScreen(
+                  invoice: invoice,
+                  token: widget.token,
+                ),
               ),
-            ),
-          );
-        },
+            );
+
+            if (result == true) {
+              fetchInvoices(); // ✅ làm mới danh sách hóa đơn
+            }
+          }
+
       ),
     );
   }

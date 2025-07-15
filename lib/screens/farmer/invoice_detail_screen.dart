@@ -45,6 +45,9 @@ class _InvoiceDetailScreenState extends State<InvoiceDetailScreen> {
       ScaffoldMessenger.of(context).showSnackBar(
         const SnackBar(content: Text('Đã thanh toán thành công')),
       );
+
+      Navigator.pop(
+          context, true); // ✅ báo về màn FarmerInvoiceScreen để reload
     } else {
       debugPrint('Lỗi thanh toán: ${res.statusCode} - ${res.body}');
       ScaffoldMessenger.of(context).showSnackBar(

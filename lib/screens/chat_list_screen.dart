@@ -94,6 +94,7 @@ class _ChatListScreenState extends State<ChatListScreen> {
                               currentUserId: widget.currentUserId,
                               currentRole: widget.currentRole,
                               token: widget.token,
+                              receiverName: convo.partnerName,
                             ),
                           ),
                         );

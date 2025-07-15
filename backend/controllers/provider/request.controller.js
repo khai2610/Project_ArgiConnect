@@ -1,5 +1,5 @@
 const ServiceRequest = require('../../models/ServiceRequest');
-
+const Invoice = require('../../models/Invoice');
 exports.getAllRequests = async (req, res) => {
   try {
     const providerId = req.user.id;
@@ -14,6 +14,41 @@ exports.getAllRequests = async (req, res) => {
       .sort({ createdAt: -1 });
 
     res.json(requests);
+  } catch (err) {
+    res.status(500).json({ message: 'Lỗi server', error: err.message });
+  }
+};
+
+exports.getProviderSummary = async (req, res) => {
+  try {
+    const providerId = req.user.id;
+
+    const startOfDay = new Date();
+    startOfDay.setHours(0, 0, 0, 0);
+
+    const endOfDay = new Date();
+    endOfDay.setHours(23, 59, 59, 999);
+
+    // ✅ Đếm số yêu cầu đã hoàn thành hôm nay
+    const completedToday = await ServiceRequest.countDocuments({
+      provider_id: providerId,
+      status: 'COMPLETED',
+      updatedAt: { $gte: startOfDay, $lte: endOfDay }
+    });
+
+    // ✅ Tính tổng doanh thu từ invoice đã thanh toán hôm nay
+    const paidInvoices = await Invoice.find({
+      provider_id: providerId,
+      status: 'PAID',
+      updatedAt: { $gte: startOfDay, $lte: endOfDay }
+    });
+
+    const revenueToday = paidInvoices.reduce((sum, inv) => sum + (inv.total_amount || 0), 0);
+
+    res.json({
+      completedToday,
+      revenueToday
+    });
   } catch (err) {
     res.status(500).json({ message: 'Lỗi server', error: err.message });
   }

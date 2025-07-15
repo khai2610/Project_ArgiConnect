@@ -27,6 +27,7 @@ app.use('/api/provider/invoices', require('./routes/provider/invoice.route'));
 app.use('/api/provider/services', require('./routes/provider/service.route'));
 app.use('/api/provider/stats', require('./routes/provider/stats.route'));
 
+
 app.use('/api/public', require('./routes/public/public.route'));
 
 app.use('/api/admin', require('./routes/admin/admin.route'));

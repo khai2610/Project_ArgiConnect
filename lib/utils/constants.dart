@@ -16,6 +16,7 @@ const String providerProfileEndpoint = '$baseUrl/provider/profile';
 const String providerRequestEndpoint = '$baseUrl/provider/requests';
 const String providerServiceEndpoint = '$baseUrl/provider/services';
 const String providerInvoiceEndpoint = '$baseUrl/provider/invoices';
+const String providerSummaryEndpoint = '$baseUrl/provider/requests/summary';
 
 // CHAT
 const String chatBaseUrl = '$baseUrl/chat';

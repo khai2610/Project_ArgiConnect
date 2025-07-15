@@ -98,9 +98,7 @@ class _RequestDetailScreenState extends State<RequestDetailScreen> {
       ScaffoldMessenger.of(context).showSnackBar(
         const SnackBar(content: Text('Yêu cầu đã hoàn thành')),
       );
-      _descriptionController.clear();
-      _attachmentController.clear();
-      fetchRequestDetail();
+      Navigator.pop(context, true); // ✅ báo về RequestListScreen để reload
     } else {
       ScaffoldMessenger.of(context).showSnackBar(
         const SnackBar(content: Text('Không thể hoàn thành yêu cầu')),
@@ -138,9 +136,8 @@ class _RequestDetailScreenState extends State<RequestDetailScreen> {
       ScaffoldMessenger.of(context).showSnackBar(
         const SnackBar(content: Text('Lập hóa đơn thành công')),
       );
-      _invoiceAmountController.clear();
-      _invoiceNoteController.clear();
-      fetchRequestDetail();
+      Navigator.pop(
+          context, true); // ✅ reload RequestListScreen sau khi lập hóa đơn
     } else {
       ScaffoldMessenger.of(context).showSnackBar(
         
