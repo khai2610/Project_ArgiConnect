@@ -1,10 +1,19 @@
 <template>
     <div>
-        <h2 class="text-2xl font-bold mb-4">📋 Danh sách yêu cầu dịch vụ</h2>
+        <!-- Tiêu đề + icon Chat bên phải -->
+        <div class="flex justify-between items-center mb-4">
+            <h2 class="text-2xl font-bold">📋 Danh sách yêu cầu dịch vụ</h2>
+            <button @click="showChatPopup = true" class="text-blue-600 hover:text-blue-800 text-xl">
+                💬
+            </button>
+        </div>
 
+        <!-- ✅ Popup Chat -->
+        <ChatPopup v-if="showChatPopup" @close="showChatPopup = false" />
+
+        <!-- Danh sách yêu cầu -->
         <div v-if="loading" class="text-gray-500">Đang tải dữ liệu...</div>
         <div v-else-if="requests.length === 0" class="text-gray-500">Không có yêu cầu nào.</div>
-
         <div v-else class="space-y-4">
             <div v-for="req in requests" :key="req._id" class="bg-white p-4 rounded shadow-md border">
                 <div class="flex justify-between items-center">
@@ -30,12 +39,14 @@
 <script setup>
 import { ref, onMounted } from 'vue';
 import axios from 'axios';
+import ChatPopup from '@/components/ChatPopup.vue';
 
 const token = localStorage.getItem('token');
 const headers = { Authorization: `Bearer ${token}` };
 
 const requests = ref([]);
 const loading = ref(true);
+const showChatPopup = ref(false);
 
 const loadRequests = async () => {
     try {
@@ -77,6 +88,7 @@ const formatDate = (iso) => new Date(iso).toLocaleString('vi-VN');
 onMounted(loadRequests);
 </script>
 
+
 <style scoped>
 .btn-blue {
     background-color: #3b82f6;
@@ -91,5 +103,6 @@ onMounted(loadRequests);
     padding: 0.4rem 1rem;
     border-radius: 6px;
 }
+
 </style>
   

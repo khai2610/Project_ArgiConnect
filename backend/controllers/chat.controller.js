@@ -6,51 +6,47 @@ const Provider = require('../models/Provider');
 const Farmer = require('../models/Farmer');
 
 exports.getConversations = async (req, res) => {
-  const { id: userId, role } = req.user;
+  try {
+    const userId = req.user.id;
+    const role = req.user.role;
 
-  const messages = await Message.aggregate([
-    {
-      $match: {
-        $or: [
-          { sender_id: new mongoose.Types.ObjectId(userId) },
-          { receiver_id: new mongoose.Types.ObjectId(userId) }
-        ]
-      }
-    },
-    {
-      $sort: { createdAt: -1 }
-    },
-    {
-      $group: {
-        _id: {
-          $cond: [
-            { $eq: ["$sender_id", new mongoose.Types.ObjectId(userId)] },
-            "$receiver_id",
-            "$sender_id"
-          ]
-        },
-        last_message: { $first: "$content" },
-        updated_at: { $first: "$createdAt" }
-      }
+    const messages = await Message.find({
+      $or: [
+        { sender_id: userId },
+        { receiver_id: userId }
+      ]
+    }).sort({ createdAt: -1 });
+
+    const seen = new Set();
+    const result = [];
+
+    for (const msg of messages) {
+      const partnerId = msg.sender_id.toString() === userId
+        ? msg.receiver_id.toString()
+        : msg.sender_id.toString();
+
+      if (seen.has(partnerId)) continue;
+      seen.add(partnerId);
+
+      const partner = role === 'provider'
+        ? await Farmer.findById(partnerId).select('name')
+        : await Provider.findById(partnerId).select('company_name');
+
+      result.push({
+        partner_id: partnerId,
+        partner_name: partner?.name || partner?.company_name || '---',
+        last_message: msg.content,
+        updated_at: msg.createdAt,
+        farmerId: role === 'provider' ? partnerId : userId,
+        providerId: role === 'provider' ? userId : partnerId,
+      });
     }
-  ]);
 
-  const result = await Promise.all(messages.map(async (m) => {
-    const partner = role === 'farmer'
-      ? await Provider.findById(m._id).select('company_name')
-      : await Farmer.findById(m._id).select('name');
-
-    return {
-      partner_id: m._id,
-      partner_name: partner?.company_name || partner?.name || 'Đối tác',
-      last_message: m.last_message,
-      updated_at: m.updated_at,
-      farmerId: role === 'farmer' ? userId : m._id,
-      providerId: role === 'provider' ? userId : m._id
-    };
-  }));
-
-  res.json(result);
+    res.json(result);
+  } catch (err) {
+    console.error('❌ Lỗi getConversations:', err);
+    res.status(500).json({ message: 'Lỗi server' });
+  }
 };
 
 
