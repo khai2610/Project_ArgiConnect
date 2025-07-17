@@ -48,11 +48,12 @@ exports.getProviderInvoices = async (req, res) => {
 
     const invoices = await Invoice.find({ provider_id: providerId })
       .populate('farmer_id', 'name email phone')
-      .populate('service_request_id', 'service_type status preferred_date')
-      .sort({ created_at: -1 });
+      .populate('service_request_id', 'service_type status preferred_date result') // 👈 thêm result
+      .sort({ createdAt: -1 }); // bạn có thể sửa `created_at` → `createdAt`
 
     res.json(invoices);
   } catch (err) {
     res.status(500).json({ message: 'Lỗi server', error: err.message });
   }
 };
+

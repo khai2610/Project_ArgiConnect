@@ -1,6 +1,6 @@
 <template>
     <div class="flex flex-col h-full">
-        <!-- Tiêu đề + nút trở lại -->
+        <!-- Header -->
         <div class="flex items-center gap-2 px-4 py-2 border-b bg-gray-50">
             <button @click="$emit('back')" class="text-gray-600 hover:text-blue-600 text-lg font-bold">←</button>
             <h2 class="text-base font-semibold text-gray-800 truncate">
@@ -28,7 +28,29 @@
                                 : 'bg-gray-200 text-gray-800 text-left'
                         ]">
                             {{ msg.content }}
+
+                            <!-- 💳 Hiển thị chi tiết hóa đơn nếu có -->
+                            <div v-if="msg.action?.type === 'PAYMENT'" class="mt-2 text-sm space-y-1 text-left">
+                                <p>🔧 {{ msg.action.detail?.serviceType }}</p>
+                                <p>📅 {{ formatDate(msg.action.detail?.preferredDate) }}</p>
+                                <p>💰 {{ msg.action.detail?.amount?.toLocaleString() }} {{ msg.action.detail?.currency
+                                    }}</p>
+                                <p v-if="msg.action.detail?.note">📝 {{ msg.action.detail.note }}</p>
+                                <router-link :to="`/farmer/invoices/${msg.action.invoiceId}`"
+                                    class="text-blue-600 underline block">
+                                    💳 Thanh toán ngay
+                                </router-link>
+                            </div>
+
+                            <!-- ✅ Xem chi tiết yêu cầu -->
+                            <div v-else-if="msg.action?.type === 'COMPLETED'" class="mt-2 text-sm">
+                                <router-link :to="`/farmer/requests/${msg.action.requestId}`"
+                                    class="text-green-600 underline">
+                                    🔍 Xem chi tiết yêu cầu
+                                </router-link>
+                            </div>
                         </div>
+
                         <div class="text-[11px] text-gray-400 mt-0.5" :class="isMine(msg) ? 'text-right' : ''">
                             {{ formatTime(msg.createdAt) }}
                         </div>
@@ -108,6 +130,11 @@ const send = async () => {
 const formatTime = (iso) => {
     const d = new Date(iso);
     return d.toLocaleTimeString('vi-VN', { hour: '2-digit', minute: '2-digit' });
+};
+
+const formatDate = (iso) => {
+    if (!iso) return '---';
+    return new Date(iso).toLocaleDateString('vi-VN');
 };
 
 const getInitial = (id) => {

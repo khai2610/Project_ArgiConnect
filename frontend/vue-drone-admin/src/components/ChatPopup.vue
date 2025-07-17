@@ -1,14 +1,10 @@
-<!-- components/ChatPopup.vue -->
 <template>
     <div
         class="fixed top-4 right-6 w-[360px] h-[500px] bg-white shadow-xl rounded-xl border z-50 flex flex-col overflow-hidden">
         <!-- Header -->
-        <!-- Header chỉ hiển thị khi chưa chọn -->
-        <div v-if="!selected" class="flex items-center justify-between px-4 py-2 border-b bg-purple-50">
-            <h3 class="font-semibold text-purple-700 text-lg">
-                💬 Tin nhắn
-            </h3>
-            <button @click="$emit('close')" class="text-purple-600 hover:text-red-500 text-xl font-bold">×</button>
+        <div class="flex items-center justify-between px-4 py-2 border-b bg-purple-50">
+            <h3 class="font-semibold text-purple-700 text-lg">💬 Tin nhắn</h3>
+            <button @click="close" class="text-purple-600 hover:text-red-500 text-xl font-bold">×</button>
         </div>
 
         <!-- Nội dung -->
@@ -20,20 +16,17 @@
                     <!-- Avatar -->
                     <div
                         class="w-10 h-10 rounded-full bg-gray-300 text-white flex items-center justify-center text-sm font-bold">
-                        {{ getInitial(item.partner_id) }}
+                        {{ getInitial(item.partner_name || item.partner_id) }}
                     </div>
 
                     <!-- Nội dung -->
                     <div class="flex-1">
                         <p class="font-semibold text-gray-800 truncate">
-                            {{ item.partner_name }}
+                            {{ item.partner_name || 'Người dùng' }}
                         </p>
-                        <p class="text-sm text-gray-500 truncate">
-                            {{ item.last_message }}
-                        </p>
+                        <p class="text-sm text-gray-500 truncate">{{ item.last_message }}</p>
                     </div>
                 </div>
-
             </div>
 
             <!-- 👉 Nội dung đoạn chat -->
@@ -43,9 +36,15 @@
 </template>
 
 <script setup>
-import { ref, onMounted } from 'vue';
+import { ref, onMounted, watchEffect } from 'vue';
 import ChatBox from './ChatBox.vue';
-import api from '@/services/api'; // dùng api.js để đảm bảo có baseURL + token
+import api from '@/services/api';
+
+const props = defineProps({
+    farmerId: String
+});
+
+const emit = defineEmits(['close']);
 
 const myId = localStorage.getItem('userId');
 const conversations = ref([]);
@@ -61,10 +60,7 @@ const loadConversations = async () => {
 };
 
 const select = (conv) => {
-    if (!conv?.partner_id) {
-        console.warn('⚠️ Dữ liệu conversation không hợp lệ:', conv);
-        return;
-    }
+    if (!conv?.partner_id) return;
 
     selected.value = {
         ...conv,
@@ -73,8 +69,34 @@ const select = (conv) => {
     };
 };
 
-const getInitial = (id) => {
-    return id?.toString()?.slice(-2)?.toUpperCase() || '??';
+// ✅ Nếu có farmerId truyền từ ngoài → mở luôn ChatBox
+watchEffect(() => {
+    if (props.farmerId && conversations.value.length > 0 && !selected.value) {
+        const match = conversations.value.find(c => c.partner_id === props.farmerId);
+        if (match) {
+            select(match);
+        } else {
+            // nếu chưa có hội thoại trước đó
+            selected.value = {
+                partner_id: props.farmerId,
+                partner_name: 'Người dùng',
+                farmerId: props.farmerId,
+                providerId: myId,
+                messages: []
+            };
+        }
+    }
+});
+
+// ✅ Đóng popup
+const close = () => {
+    selected.value = null;
+    emit('close');
+};
+
+// ✅ Avatar mặc định
+const getInitial = (nameOrId) => {
+    return nameOrId?.toString()?.slice(0, 2).toUpperCase() || '??';
 };
 
 onMounted(loadConversations);

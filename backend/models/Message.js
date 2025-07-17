@@ -10,6 +10,7 @@ const MessageSchema = new mongoose.Schema({
   request_id: { type: mongoose.Schema.Types.ObjectId, ref: 'ServiceRequest', required: false,default: null },
 
   content: { type: String, required: true },
+  action: { type: Object, default: null },
   read: { type: Boolean, default: false }
 }, { timestamps: true });
 

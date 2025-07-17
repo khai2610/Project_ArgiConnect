@@ -67,7 +67,7 @@ exports.getMessagesBetweenUsers = async (req, res) => {
 exports.sendMessageBetweenUsers = async (req, res) => {
   try {
     const { farmerId, providerId } = req.params;
-    const { content } = req.body;
+    const { content, action } = req.body;
 
     const senderId = req.user.id;
     const senderRole = req.role;
@@ -80,7 +80,8 @@ exports.sendMessageBetweenUsers = async (req, res) => {
       sender_role: senderRole,
       receiver_id: receiverId,
       receiver_role: receiverRole,
-      content
+      content,
+      action: action || null
     });
 
     await message.save();

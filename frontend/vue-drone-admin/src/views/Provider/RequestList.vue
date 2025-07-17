@@ -1,108 +1,121 @@
 <template>
     <div>
-        <!-- Tiêu đề + icon Chat bên phải -->
+        <!-- Tiêu đề -->
         <div class="flex justify-between items-center mb-4">
             <h2 class="text-2xl font-bold">📋 Danh sách yêu cầu dịch vụ</h2>
-            <button @click="showChatPopup = true" class="text-blue-600 hover:text-blue-800 text-xl">
-                💬
-            </button>
+            <button @click="showChatPopup = true" class="text-blue-600 hover:text-blue-800 text-xl">💬</button>
         </div>
 
-        <!-- ✅ Popup Chat -->
+        <!-- Chat popup -->
         <ChatPopup v-if="showChatPopup" @close="showChatPopup = false" />
 
-        <!-- Danh sách yêu cầu -->
+        <!-- Loading -->
         <div v-if="loading" class="text-gray-500">Đang tải dữ liệu...</div>
-        <div v-else-if="requests.length === 0" class="text-gray-500">Không có yêu cầu nào.</div>
-        <div v-else class="space-y-4">
-            <div v-for="req in requests" :key="req._id" class="bg-white p-4 rounded shadow-md border">
-                <div class="flex justify-between items-center">
-                    <div>
-                        <p class="font-semibold text-lg">{{ req.service_type }}</p>
-                        <p class="text-sm text-gray-600">Ngày yêu cầu: {{ formatDate(req.createdAt) }}</p>
-                        <p class="text-sm text-gray-600">Trạng thái: <strong>{{ req.status }}</strong></p>
-                        <p class="text-sm text-gray-600">Thanh toán: {{ req.payment_status || '---' }}</p>
-                        <p class="text-sm text-gray-600">Nông dân: {{ req.farmer_id?.name || '---' }}</p>
-                    </div>
-                    <div class="space-x-2">
-                        <button v-if="req.status === 'PENDING'" @click="accept(req._id)" class="btn-blue">✅
-                            Nhận</button>
-                        <button v-if="req.status === 'ACCEPTED'" @click="complete(req._id)" class="btn-green">🏁 Hoàn
-                            thành</button>
-                    </div>
+
+        <!-- Danh sách theo nhóm -->
+        <div v-else>
+            <!-- 📦 Yêu cầu đã nhận -->
+            <div v-if="acceptedRequests.length" class="mb-6">
+                <div class="flex justify-between items-center mb-2">
+                    <h3 class="text-xl font-semibold">📦 Yêu cầu đã nhận</h3>
+                    <select v-model="filterInvoiceStatus" class="border rounded px-2 py-1 text-sm">
+                        <option value="">Tất cả</option>
+                        <option value="yes">Đã lập hóa đơn</option>
+                        <option value="no">Chưa có hóa đơn</option>
+                    </select>
                 </div>
+
+                <RequestCard v-for="r in filteredAcceptedRequests" :key="r._id" :req="r" />
+            </div>
+
+            <!-- 📬 Yêu cầu được chỉ định -->
+            <div v-if="assignedRequests.length" class="mb-6">
+                <h3 class="text-xl font-semibold mb-2">📬 Yêu cầu được chỉ định</h3>
+                <RequestCard v-for="r in assignedRequests" :key="r._id" :req="r" />
+            </div>
+
+            <!-- 🌐 Yêu cầu tự do -->
+            <div v-if="openRequests.length" class="mb-6">
+                <h3 class="text-xl font-semibold mb-2">🌐 Yêu cầu tự do</h3>
+                <RequestCard v-for="r in openRequests" :key="r._id" :req="r" />
+            </div>
+
+            <div v-if="!acceptedRequests.length && !assignedRequests.length && !openRequests.length"
+                class="text-gray-500">
+                Không có yêu cầu nào.
             </div>
         </div>
     </div>
 </template>
 
 <script setup>
-import { ref, onMounted } from 'vue';
+import { ref, onMounted, computed } from 'vue';
 import axios from 'axios';
 import ChatPopup from '@/components/ChatPopup.vue';
+import RequestCard from '@/components/RequestCard.vue';
 
 const token = localStorage.getItem('token');
 const headers = { Authorization: `Bearer ${token}` };
 
-const requests = ref([]);
+const acceptedRequests = ref([]);
+const assignedRequests = ref([]);
+const openRequests = ref([]);
+const invoices = ref([]);
+const invoiceMap = ref({});
+
 const loading = ref(true);
 const showChatPopup = ref(false);
+const filterInvoiceStatus = ref(''); // '', 'yes', 'no'
 
 const loadRequests = async () => {
     try {
         const res = await axios.get('http://localhost:5000/api/provider/requests', { headers });
-        requests.value = res.data;
+        const all = res.data;
+        const myId = JSON.parse(atob(token.split('.')[1])).id;
+
+        // Lấy danh sách hóa đơn
+        const invoiceRes = await axios.get('http://localhost:5000/api/provider/invoices', { headers });
+        invoices.value = invoiceRes.data;
+        invoiceMap.value = Object.fromEntries(
+            invoices.value.map(i => [i.service_request_id._id, i])
+        );
+
+        // Phân loại yêu cầu
+        assignedRequests.value = all.filter(r => {
+            const pid = r.provider_id?._id || r.provider_id;
+            return pid === myId && r.status === 'PENDING';
+        });
+
+        acceptedRequests.value = all.filter(r => {
+            const pid = r.provider_id?._id || r.provider_id;
+            return pid === myId && ['ACCEPTED', 'COMPLETED'].includes(r.status);
+        });
+
+        openRequests.value = all.filter(r => !r.provider_id && r.status === 'PENDING');
+
     } catch (err) {
-        alert('Lỗi khi tải yêu cầu');
+        console.error('Lỗi khi tải yêu cầu:', err);
+        alert('Không thể tải yêu cầu');
     } finally {
         loading.value = false;
     }
 };
 
-const accept = async (id) => {
-    try {
-        await axios.patch(`http://localhost:5000/api/provider/requests/${id}/accept`, {}, { headers });
-        await loadRequests();
-    } catch (err) {
-        alert(err.response?.data?.message || 'Lỗi khi nhận yêu cầu');
-    }
-};
-
-const complete = async (id) => {
-    const description = prompt('Nhập mô tả kết quả:');
-    if (!description) return;
-
-    try {
-        await axios.patch(`http://localhost:5000/api/provider/requests/${id}/complete`, {
-            description,
-            attachments: []
-        }, { headers });
-        await loadRequests();
-    } catch (err) {
-        alert(err.response?.data?.message || 'Lỗi khi hoàn thành');
-    }
-};
-
-const formatDate = (iso) => new Date(iso).toLocaleString('vi-VN');
+// ✅ Danh sách yêu cầu đã nhận có lọc theo hóa đơn
+const filteredAcceptedRequests = computed(() => {
+    return acceptedRequests.value.filter(r => {
+        const hasInvoice = !!invoiceMap.value[r._id];
+        if (filterInvoiceStatus.value === 'yes') return hasInvoice;
+        if (filterInvoiceStatus.value === 'no') return !hasInvoice;
+        return true;
+    });
+});
 
 onMounted(loadRequests);
 </script>
 
-
 <style scoped>
-.btn-blue {
-    background-color: #3b82f6;
-    color: white;
-    padding: 0.4rem 1rem;
-    border-radius: 6px;
+select {
+    min-width: 150px;
 }
-
-.btn-green {
-    background-color: #22c55e;
-    color: white;
-    padding: 0.4rem 1rem;
-    border-radius: 6px;
-}
-
 </style>
-  

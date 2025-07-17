@@ -20,7 +20,8 @@ const ProviderSchema = new mongoose.Schema({
       description: String
     }
   ],
-  status: { type: String, enum: ['PENDING', 'APPROVED', 'REJECTED'], default: 'PENDING' }
+  status: { type: String, enum: ['PENDING', 'APPROVED', 'REJECTED'], default: 'PENDING' },
+  avatar: { type: String, default: '' },
 }, { timestamps: true });
 
 module.exports = mongoose.model('Provider', ProviderSchema);

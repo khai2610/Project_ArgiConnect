@@ -9,6 +9,8 @@ export default [
         { path: 'requests', component: () => import('@/views/provider/RequestList.vue') },
         { path: 'invoices', component: () => import('@/views/provider/InvoiceList.vue') },
         { path: 'profile', component: () => import('@/views/provider/Profile.vue') },
+        { path: 'requests/:id', name: 'ProviderRequestDetail', component: () => import('@/views/provider/RequestDetail.vue') }, // ✅ thêm dòng này
+        { path: 'invoices/:id', name: 'ProviderInvoiceDetail', component: () => import('@/views/provider/InvoiceDetail.vue') }
       ]
     },
     {

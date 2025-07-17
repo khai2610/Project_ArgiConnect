@@ -1,6 +1,9 @@
 const express = require('express');
 const mongoose = require('mongoose');
 const cors = require('cors');
+
+const path = require('path');
+
 require('dotenv').config();
 
 const app = express();
@@ -33,5 +36,7 @@ app.use('/api/public', require('./routes/public/public.route'));
 app.use('/api/admin', require('./routes/admin/admin.route'));
 
 app.use('/api/chat', require('./routes/chat.route'));
+
+app.use('/uploads', express.static(path.join(__dirname, 'uploads')));
 
 module.exports = app;

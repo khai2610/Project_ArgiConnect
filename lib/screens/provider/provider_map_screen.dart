@@ -3,7 +3,9 @@ import 'package:flutter/material.dart';
 import 'package:google_maps_flutter/google_maps_flutter.dart';
 import 'package:geolocator/geolocator.dart';
 import 'package:http/http.dart' as http;
+import 'package:jwt_decoder/jwt_decoder.dart';
 import '../../utils/constants.dart';
+import 'provider_chat_screen.dart';
 
 class ProviderMapScreen extends StatefulWidget {
   final String token;
@@ -19,9 +21,12 @@ class _ProviderMapScreenState extends State<ProviderMapScreen> {
   final Map<MarkerId, Marker> _markers = {};
   final Map<String, dynamic> _requestMap = {}; // 👈 lưu dữ liệu yêu cầu theo id
 
+  late final String providerId;
+
   @override
   void initState() {
     super.initState();
+    providerId = JwtDecoder.decode(widget.token)['id'];
     _getCurrentLocation();
     _fetchMarkers();
   }
@@ -74,9 +79,10 @@ class _ProviderMapScreenState extends State<ProviderMapScreen> {
               icon: _getMarkerColor(status),
               infoWindow: InfoWindow(
                 title: '$crop - $service',
-                onTap: () => _showRequestPopup(req), // 👈 show bottom popup
               ),
+              onTap: () => _showRequestPopup(req),
             );
+
             _markers[MarkerId(id)] = marker;
           }
         }
@@ -103,10 +109,15 @@ class _ProviderMapScreenState extends State<ProviderMapScreen> {
     final service = req['service_type'] ?? '---';
     final area = req['area_ha']?.toString() ?? '---';
     final date = req['preferred_date'] != null
-        ? DateTime.parse(req['preferred_date']).toLocal().toString().split(' ')[0]
+        ? DateTime.parse(req['preferred_date'])
+            .toLocal()
+            .toString()
+            .split(' ')[0]
         : '---';
     final status = req['status'] ?? '---';
     final phone = req['farmer_id']?['phone'] ?? '---';
+    final farmerId = req['farmer_id']?['_id'];
+    final farmerName = req['farmer_id']?['name'] ?? 'Nông dân';
 
     showModalBottomSheet(
       context: context,
@@ -120,7 +131,8 @@ class _ProviderMapScreenState extends State<ProviderMapScreen> {
           crossAxisAlignment: CrossAxisAlignment.start,
           children: [
             Text('$crop - $service',
-                style: const TextStyle(fontWeight: FontWeight.bold, fontSize: 18)),
+                style:
+                    const TextStyle(fontWeight: FontWeight.bold, fontSize: 18)),
             const SizedBox(height: 8),
             Text('Diện tích: $area ha'),
             Text('Ngày thực hiện: $date'),
@@ -143,7 +155,33 @@ class _ProviderMapScreenState extends State<ProviderMapScreen> {
                   child: OutlinedButton.icon(
                     icon: const Icon(Icons.chat),
                     label: const Text('Nhắn tin'),
-                    onPressed: () => _chatWithFarmer(req['farmer_id']),
+                    onPressed: () {
+                        Navigator.pop(context); // đóng bottom sheet
+                        final farmer = req['farmer_id'];
+                        final farmerId = farmer?['_id'];
+                        final farmerName = farmer?['name'] ?? 'Nông dân';
+                        if (farmerId != null) {
+                          Navigator.push(
+                            context,
+                            MaterialPageRoute(
+                              builder: (_) => ProviderChatScreen(
+                                token: widget.token,
+                                farmerId: farmerId,
+                                providerId:
+                                    providerId, // 👈 dùng biến đã decode từ token
+                                currentUserId:
+                                    providerId, // 👈 chính là provider
+                                receiverName: farmerName,
+                              ),
+                            ),
+                          );
+                        } else {
+                          ScaffoldMessenger.of(context).showSnackBar(
+                            const SnackBar(
+                                content: Text('Không thể mở cuộc trò chuyện')),
+                          );
+                        }
+                      }
                   ),
                 ),
               ],
@@ -153,6 +191,7 @@ class _ProviderMapScreenState extends State<ProviderMapScreen> {
       ),
     );
   }
+
 
   Future<void> _acceptRequest(String requestId) async {
     Navigator.pop(context); // đóng popup trước khi gọi API
@@ -169,14 +208,6 @@ class _ProviderMapScreenState extends State<ProviderMapScreen> {
       final msg = body['message'] ?? '❌ Lỗi khi chấp nhận';
       ScaffoldMessenger.of(context).showSnackBar(SnackBar(content: Text(msg)));
     }
-  }
-
-  void _chatWithFarmer(dynamic farmer) {
-    Navigator.pop(context); // đóng popup
-    ScaffoldMessenger.of(context).showSnackBar(
-      SnackBar(content: Text('💬 Mở chat với ${farmer?['name'] ?? 'nông dân'}')),
-    );
-    // TODO: điều hướng tới màn hình chat
   }
 
   @override
