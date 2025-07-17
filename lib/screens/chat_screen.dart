@@ -115,7 +115,36 @@ class _ChatScreenState extends State<ChatScreen> {
                       color: isMe ? Colors.green[100] : Colors.grey[300],
                       borderRadius: BorderRadius.circular(12),
                     ),
-                    child: Text(msg.content),
+                    child: Column(
+                      crossAxisAlignment: CrossAxisAlignment.start,
+                      children: [
+                        Text(msg.content),
+                        if (msg.action?['type'] == 'PAYMENT') ...[
+                          const SizedBox(height: 6),
+                          Text(
+                              '🔧 ${msg.action?['detail']?['serviceType'] ?? ''}'),
+                          Text(
+                              '📅 ${msg.action?['detail']?['preferredDate'] ?? ''}'),
+                          Text(
+                            '💰 ${msg.action?['detail']?['amount']?.toString()} ${msg.action?['detail']?['currency'] ?? ''}',
+                          ),
+                          if (msg.action?['detail']?['note'] != null)
+                            Text('📝 ${msg.action?['detail']?['note']}'),
+                          const SizedBox(height: 6),
+                          TextButton(
+                            onPressed: () {
+                              final invoiceId = msg.action?['invoiceId'];
+                              if (invoiceId != null) {
+                                Navigator.pushNamed(
+                                    context, '/invoice/$invoiceId');
+                              }
+                            },
+                            child: const Text('💳 Thanh toán ngay'),
+                          )
+                        ]
+                      ],
+                    ),
+
                   ),
                 );
               },
