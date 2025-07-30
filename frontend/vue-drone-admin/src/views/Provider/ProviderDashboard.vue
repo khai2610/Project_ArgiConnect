@@ -23,13 +23,26 @@
 
             <!-- 📍 Bản đồ -->
             <div class="bg-white shadow-md rounded-xl p-4 mb-8">
-                <h3 class="text-lg font-semibold text-gray-700 mb-2">📍 Vị trí nhà cung cấp</h3>
-                <LMap v-if="center" :zoom="13" :center="center" style="height: 400px; width: 100%">
+                <h3 class="text-lg font-semibold text-gray-700 mb-2">📍 Các yêu cầu xung quanh</h3>
+                <LMap v-if="requestsNearby.length > 0" :zoom="13"
+                    :center="[requestsNearby[0].field_location.coordinates.lat, requestsNearby[0].field_location.coordinates.lng]"
+                    style="height: 400px; width: 100%">
                     <LTileLayer url="https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png"
                         attribution="&copy; OpenStreetMap contributors" />
-                    <LMarker :lat-lng="center" />
+
+                    <!-- Marker các yêu cầu -->
+                    <LMarker v-for="req in requestsNearby" :key="req._id"
+                        :lat-lng="[req.field_location.coordinates.lat, req.field_location.coordinates.lng]">
+                        <template #popup>
+                            <div>
+                                <p class="font-semibold">📋 {{ req.service_type }}</p>
+                                <p>🌾 {{ req.crop_type }} | {{ req.area_ha }} ha</p>
+                                <p>🗓 {{ new Date(req.preferred_date).toLocaleDateString() }}</p>
+                            </div>
+                        </template>
+                    </LMarker>
                 </LMap>
-                <p v-else class="text-gray-500 italic">Không có thông tin vị trí</p>
+                <p v-else class="text-gray-500 italic">Không có yêu cầu nào có toạ độ</p>
             </div>
 
             <!-- 📊 Thống kê linh hoạt -->
@@ -96,13 +109,10 @@ const headers = { Authorization: `Bearer ${token}` };
 const provider = ref({
     services: [],
     company_name: '',
-    location: {
-        coordinates: { lat: null, lng: null }
-    }
 });
 const requestCount = ref(0);
 const loading = ref(true);
-const center = ref(null);
+const requestsNearby = ref([]);
 
 // 📊 Thống kê
 const selectedRange = ref('month');
@@ -127,13 +137,14 @@ const loadProviderData = async () => {
     const profileRes = await axios.get('http://localhost:5000/api/provider/profile', { headers });
     provider.value = profileRes.data;
 
-    const loc = profileRes.data?.location?.coordinates;
-    if (loc?.lat && loc?.lng) {
-        center.value = [loc.lat, loc.lng];
-    }
-
     const requestRes = await axios.get('http://localhost:5000/api/provider/requests', { headers });
     requestCount.value = requestRes.data.length;
+
+    // lọc các yêu cầu có toạ độ
+    requestsNearby.value = requestRes.data.filter(r =>
+        r.field_location?.coordinates?.lat &&
+        r.field_location?.coordinates?.lng
+    );
 };
 
 const loadStats = async () => {
@@ -155,4 +166,3 @@ onMounted(async () => {
     }
 });
 </script>
-  

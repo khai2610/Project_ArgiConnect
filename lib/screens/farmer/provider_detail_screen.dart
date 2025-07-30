@@ -22,6 +22,7 @@ class ProviderDetailScreen extends StatefulWidget {
 class _ProviderDetailScreenState extends State<ProviderDetailScreen> {
   late Future<Map<String, dynamic>> _providerFuture;
   late Future<List<dynamic>> _servicesFuture;
+  late Future<List<dynamic>> _ratingsFuture;
 
   bool showRequestForm = false;
   String? selectedService;
@@ -35,6 +36,7 @@ class _ProviderDetailScreenState extends State<ProviderDetailScreen> {
     super.initState();
     _providerFuture = fetchProvider(widget.providerId);
     _servicesFuture = fetchServices(widget.providerId);
+    _ratingsFuture = fetchRatings(widget.providerId);
   }
 
   Future<Map<String, dynamic>> fetchProvider(String id) async {
@@ -47,6 +49,13 @@ class _ProviderDetailScreenState extends State<ProviderDetailScreen> {
     final res = await http.get(Uri.parse(getPublicProviderServicesUrl(id)));
     if (res.statusCode == 200) return jsonDecode(res.body);
     throw Exception('Không thể tải danh sách dịch vụ');
+  }
+
+  Future<List<dynamic>> fetchRatings(String id) async {
+    final res =
+        await http.get(Uri.parse('$baseUrl/public/provider/$id/ratings'));
+    if (res.statusCode == 200) return jsonDecode(res.body);
+    return [];
   }
 
   Future<void> submitRequest() async {
@@ -103,7 +112,7 @@ class _ProviderDetailScreenState extends State<ProviderDetailScreen> {
         title: const Text('Thông tin nhà cung cấp'),
       ),
       body: FutureBuilder(
-        future: Future.wait([_providerFuture, _servicesFuture]),
+        future: Future.wait([_providerFuture, _servicesFuture, _ratingsFuture]),
         builder: (context, snapshot) {
           if (snapshot.connectionState != ConnectionState.done) {
             return const Center(child: CircularProgressIndicator());
@@ -115,6 +124,7 @@ class _ProviderDetailScreenState extends State<ProviderDetailScreen> {
 
           final provider = (snapshot.data as List)[0] as Map<String, dynamic>;
           final services = (snapshot.data as List)[1] as List<dynamic>;
+          final ratings = (snapshot.data as List)[2] as List<dynamic>;
 
           return SingleChildScrollView(
             padding: const EdgeInsets.all(24),
@@ -160,7 +170,6 @@ class _ProviderDetailScreenState extends State<ProviderDetailScreen> {
                     ),
                   ),
                 ),
-
                 const Divider(height: 32),
                 const Text(
                   'Dịch vụ cung cấp:',
@@ -190,10 +199,107 @@ class _ProviderDetailScreenState extends State<ProviderDetailScreen> {
                       ),
                     )),
                 const SizedBox(height: 24),
+                if (ratings.isNotEmpty) ...[
+                  const Divider(height: 32),
+                  const Text(
+                    'Đánh giá từ nông dân:',
+                    style: TextStyle(fontSize: 16, fontWeight: FontWeight.bold),
+                  ),
+                  const SizedBox(height: 12),
+                  ...ratings.map((r) => Card(
+                        margin: const EdgeInsets.only(bottom: 12),
+                        child: ListTile(
+                          onTap: () => showDialog(
+                            context: context,
+                            builder: (_) => AlertDialog(
+                              title: Row(
+                                children: List.generate(5, (index) {
+                                  final rating = r['rating'] ?? 0;
+                                  return Icon(
+                                    index < rating
+                                        ? Icons.star
+                                        : Icons.star_border,
+                                    color: Colors.orange,
+                                  );
+                                }),
+                              ),
+                              content: Column(
+                                mainAxisSize: MainAxisSize.min,
+                                crossAxisAlignment: CrossAxisAlignment.start,
+                                children: [
+                                  if ((r['comment'] ?? '')
+                                      .toString()
+                                      .isNotEmpty)
+                                    Text('Nhận xét: ${r['comment']}'),
+                                  if (r['crop_type'] != null)
+                                    Text('Cây trồng: ${r['crop_type']}'),
+                                  if (r['service_type'] != null)
+                                    Text('Dịch vụ: ${r['service_type']}'),
+                                  if (r['preferred_date'] != null)
+                                    Text(
+                                        'Ngày yêu cầu: ${r['preferred_date'].toString().split('T')[0]}'),
+                                  const SizedBox(height: 8),
+                                  if (r['result'] != null &&
+                                      r['result']['description'] != null)
+                                    Text(
+                                        'Kết quả: ${r['result']['description']}'),
+                                  if (r['result'] != null &&
+                                      (r['result']['attachments'] as List?)
+                                              ?.isNotEmpty ==
+                                          true) ...[
+                                    const SizedBox(height: 6),
+                                    const Text('Đính kèm:'),
+                                    ...List<String>.from(
+                                            r['result']['attachments'])
+                                        .map((url) => Text('• $url',
+                                            style:
+                                                const TextStyle(fontSize: 13))),
+                                  ],
+                                ],
+                              ),
+                              actions: [
+                                TextButton(
+                                  child: const Text('Đóng'),
+                                  onPressed: () => Navigator.pop(context),
+                                ),
+                              ],
+                            ),
+                          ),
+                          title: Row(
+                            children: List.generate(5, (index) {
+                              final rating = r['rating'] ?? 0;
+                              return Icon(
+                                index < rating ? Icons.star : Icons.star_border,
+                                color: Colors.orange.shade400,
+                                size: 20,
+                              );
+                            }),
+                          ),
+                          subtitle: Column(
+                            crossAxisAlignment: CrossAxisAlignment.start,
+                            children: [
+                              if ((r['comment'] ?? '').toString().isNotEmpty)
+                                Padding(
+                                  padding: const EdgeInsets.only(top: 4),
+                                  child: Text('Nhận xét: ${r['comment']}'),
+                                ),
+                              if (r['crop_type'] != null)
+                                Text('Loại cây: ${r['crop_type']}'),
+                              if (r['preferred_date'] != null)
+                                Text(
+                                    'Ngày: ${r['preferred_date'].toString().split('T')[0]}'),
+                            ],
+                          ),
+                        ),
+                      )),
+                ] else ...[
+                  const SizedBox(height: 16),
+                  const Text('Chưa có đánh giá nào từ nông dân'),
+                ],
                 if (showRequestForm)
                   Container(
                     padding: const EdgeInsets.all(20),
-                    margin: const EdgeInsets.only(top: 12),
+                    margin: const EdgeInsets.only(top: 24),
                     decoration: BoxDecoration(
                       color: Colors.white,
                       borderRadius: BorderRadius.circular(24),
@@ -282,7 +388,7 @@ class _ProviderDetailScreenState extends State<ProviderDetailScreen> {
                         ),
                       ],
                     ),
-                  )
+                  ),
               ],
             ),
           );

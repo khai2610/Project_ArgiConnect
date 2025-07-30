@@ -122,3 +122,36 @@ exports.completeRequest = async (req, res) => {
     }
   };
   
+  exports.rejectRequest = async (req, res) => {
+  try {
+    const providerId = req.user.id;
+    const requestId = req.params.id;
+
+    const request = await ServiceRequest.findById(requestId);
+
+    if (!request) {
+      return res.status(404).json({ message: 'Không tìm thấy yêu cầu' });
+    }
+
+    if (request.status !== 'PENDING') {
+      return res.status(400).json({ message: 'Yêu cầu đã được xử lý' });
+    }
+
+    // Nếu là yêu cầu chỉ định → chỉ provider được chỉ định mới được từ chối
+    if (request.provider_id && request.provider_id.toString() !== providerId) {
+      return res.status(403).json({ message: 'Bạn không có quyền xử lý yêu cầu này' });
+    }
+
+    // Nếu là yêu cầu tự do → gán provider hiện tại trước khi từ chối (hoặc có thể bỏ qua)
+    if (!request.provider_id) {
+      request.provider_id = providerId;
+    }
+
+    request.status = 'REJECTED';
+    await request.save();
+
+    res.json({ message: 'Đã từ chối yêu cầu thành công', request });
+  } catch (err) {
+    res.status(500).json({ message: 'Lỗi server', error: err.message });
+  }
+};

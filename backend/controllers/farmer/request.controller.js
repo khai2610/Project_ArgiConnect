@@ -173,3 +173,31 @@ exports.getMyRequests = async (req, res) => {
       res.status(500).json({ message: 'Lỗi server', error: err.message });
     }
   };
+
+  exports.resendRequest = async (req, res) => {
+  try {
+    const farmerId = req.user.id;
+    const requestId = req.params.id;
+
+    const request = await ServiceRequest.findOne({
+      _id: requestId,
+      farmer_id: farmerId
+    });
+
+    if (!request) {
+      return res.status(404).json({ message: 'Không tìm thấy yêu cầu' });
+    }
+
+    if (request.status !== 'REJECTED') {
+      return res.status(400).json({ message: 'Chỉ có thể gửi lại yêu cầu đã bị từ chối' });
+    }
+
+    request.status = 'PENDING';
+    request.provider_id = null; // ✅ mở lại tự do cho tất cả providers (tuỳ chọn)
+    await request.save();
+
+    res.json({ message: 'Gửi lại yêu cầu thành công', request });
+  } catch (err) {
+    res.status(500).json({ message: 'Lỗi server', error: err.message });
+  }
+};

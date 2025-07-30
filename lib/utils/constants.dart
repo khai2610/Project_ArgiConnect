@@ -11,6 +11,8 @@ const String farmerInvoiceEndpoint = '$baseUrl/farmer/invoices';
 String getPublicProviderInfoUrl(String id) => '$baseUrl/public/provider/$id';
 String getPublicProviderServicesUrl(String id) =>'$baseUrl/public/provider/$id/services';
 
+const String publicProvidersUrl = '$baseUrl/public/providers';
+
 
 const String providerProfileEndpoint = '$baseUrl/provider/profile';
 const String providerRequestEndpoint = '$baseUrl/provider/requests';

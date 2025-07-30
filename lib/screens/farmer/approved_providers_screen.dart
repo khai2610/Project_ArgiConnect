@@ -3,6 +3,7 @@ import 'package:flutter/material.dart';
 import 'package:http/http.dart' as http;
 import '../../utils/constants.dart';
 import 'provider_detail_screen.dart';
+import 'ServiceProvidersMapScreen.dart';
 
 class ApprovedProvidersScreen extends StatefulWidget {
   final String token;
@@ -20,7 +21,8 @@ class ApprovedProvidersScreen extends StatefulWidget {
 }
 
 class _ApprovedProvidersScreenState extends State<ApprovedProvidersScreen> {
-  List<dynamic> providers = [];
+  List<dynamic> approved = [];
+  List<dynamic> others = [];
   bool isLoading = true;
 
   @override
@@ -39,8 +41,10 @@ class _ApprovedProvidersScreenState extends State<ApprovedProvidersScreen> {
       );
 
       if (res.statusCode == 200) {
+        final all = json.decode(res.body) as List;
         setState(() {
-          providers = json.decode(res.body);
+          approved = all.where((p) => p['status'] == 'APPROVED').toList();
+          others = all.where((p) => p['status'] != 'APPROVED').toList();
           isLoading = false;
         });
       } else {
@@ -53,74 +57,188 @@ class _ApprovedProvidersScreenState extends State<ApprovedProvidersScreen> {
     }
   }
 
+  Widget _buildProviderCard(Map<String, dynamic> provider,
+      {bool isApproved = true}) {
+    return Container(
+      margin: const EdgeInsets.only(bottom: 16),
+      padding: const EdgeInsets.all(16),
+      decoration: BoxDecoration(
+        color: isApproved ? Colors.white : Colors.grey.shade100,
+        borderRadius: BorderRadius.circular(20),
+        boxShadow: const [
+          BoxShadow(
+            color: Colors.black12,
+            blurRadius: 8,
+            offset: Offset(0, 4),
+          )
+        ],
+      ),
+      child: ListTile(
+        contentPadding: EdgeInsets.zero,
+        title: Text(
+          provider['company_name'] ?? 'Không tên',
+          style: const TextStyle(fontWeight: FontWeight.bold, fontSize: 16),
+        ),
+        subtitle: Column(
+          crossAxisAlignment: CrossAxisAlignment.start,
+          children: [
+            const SizedBox(height: 4),
+            Text('Email: ${provider['email']}'),
+            Text('SĐT: ${provider['phone']}'),
+            if (provider['address'] != null)
+              Text('Địa chỉ: ${provider['address']}'),
+            if (!isApproved && provider['status'] != null)
+              Text('Trạng thái: ${provider['status']}',
+                  style: const TextStyle(fontStyle: FontStyle.italic)),
+          ],
+        ),
+        trailing: Row(
+          mainAxisSize: MainAxisSize.min,
+          children: [
+            if (isApproved)
+              IconButton(
+                icon: const Icon(Icons.description, color: Colors.green),
+                tooltip: 'Xem chi tiết',
+                onPressed: () {
+                  Navigator.push(
+                    context,
+                    MaterialPageRoute(
+                      builder: (_) => ProviderDetailScreen(
+                        providerId: provider['_id'],
+                        farmerId: widget.farmerId,
+                        token: widget.token,
+                      ),
+                    ),
+                  );
+                },
+              ),
+            if (isApproved)
+              IconButton(
+                icon: const Icon(Icons.send, color: Colors.orange),
+                tooltip: 'Gửi yêu cầu',
+                onPressed: () {
+                  Navigator.push(
+                    context,
+                    MaterialPageRoute(
+                      builder: (_) => ProviderDetailScreen(
+                        providerId: provider['_id'],
+                        farmerId: widget.farmerId,
+                        token: widget.token,
+                      ),
+                    ),
+                  );
+                },
+              ),
+          ],
+        ),
+      ),
+    );
+  }
+
   @override
   Widget build(BuildContext context) {
     return Scaffold(
       backgroundColor: Colors.green.shade50,
       appBar: AppBar(
         backgroundColor: Colors.green.shade700,
-        title: const Text('Nhà cung cấp đã duyệt'),
+        // title: const Text('Danh sách nhà cung cấp'),
       ),
       body: isLoading
           ? const Center(child: CircularProgressIndicator())
-          : providers.isEmpty
-              ? const Center(
-                  child: Text('Không có nhà cung cấp nào được duyệt'))
-              : ListView.builder(
-                  padding: const EdgeInsets.all(16),
-                  itemCount: providers.length,
-                  itemBuilder: (context, index) {
-                    final provider = providers[index];
-                    return Container(
-                      margin: const EdgeInsets.only(bottom: 16),
-                      padding: const EdgeInsets.all(16),
-                      decoration: BoxDecoration(
-                        color: Colors.white,
-                        borderRadius: BorderRadius.circular(20),
-                        boxShadow: const [
-                          BoxShadow(
-                            color: Colors.black12,
-                            blurRadius: 8,
-                            offset: Offset(0, 4),
-                          )
-                        ],
-                      ),
-                      child: ListTile(
-                        contentPadding: EdgeInsets.zero,
-                        title: Text(
-                          provider['company_name'] ?? 'Không tên',
-                          style: const TextStyle(
-                            fontWeight: FontWeight.bold,
-                            fontSize: 16,
-                          ),
+          : ListView(
+              padding: const EdgeInsets.all(16),
+              children: [
+                ProviderCategorySelector(
+                  onServiceSelected: (serviceType) {
+                    // TODO: xử lý chuyển trang theo loại dịch vụ
+                    Navigator.push(
+                      context,
+                      MaterialPageRoute(
+                        builder: (_) => ServiceProvidersMapScreen(
+                          token: widget.token,
+                          farmerId: widget.farmerId,
+                          serviceType: serviceType,
                         ),
-                        subtitle: Column(
-                          crossAxisAlignment: CrossAxisAlignment.start,
-                          children: [
-                            const SizedBox(height: 4),
-                            Text('Email: ${provider['email']}'),
-                            Text('SĐT: ${provider['phone']}'),
-                            if (provider['address'] != null)
-                              Text('Địa chỉ: ${provider['address']}'),
-                          ],
-                        ),
-                        trailing: const Icon(Icons.arrow_forward_ios, size: 16),
-                        onTap: () {
-                          Navigator.push(
-                            context,
-                            MaterialPageRoute(
-                              builder: (_) => ProviderDetailScreen(
-                                providerId: provider['_id'],
-                                farmerId: widget.farmerId,
-                                token: widget.token,
-                              ),
-                            ),
-                          );
-                        },
                       ),
                     );
                   },
                 ),
+                const SizedBox(height: 24),
+                if (others.isNotEmpty) ...[
+                  const Text(
+                    'Nhà cung cấp chưa được duyệt',
+                    style: TextStyle(fontSize: 16, fontWeight: FontWeight.bold),
+                  ),
+                  const SizedBox(height: 12),
+                  ...others
+                      .map((p) => _buildProviderCard(p, isApproved: false)),
+                  const SizedBox(height: 24),
+                ],
+                if (approved.isNotEmpty) ...[
+                  const Text(
+                    'Nhà cung cấp đã được duyệt',
+                    style: TextStyle(fontSize: 16, fontWeight: FontWeight.bold),
+                  ),
+                  const SizedBox(height: 12),
+                  ...approved.map((p) => _buildProviderCard(p)),
+                ] else if (others.isEmpty) ...[
+                  const Center(
+                    child: Text('Không có nhà cung cấp nào phù hợp'),
+                  )
+                ]
+              ],
+            ),
+    );
+  }
+}
+
+class ProviderCategorySelector extends StatelessWidget {
+  final void Function(String serviceType) onServiceSelected;
+
+  ProviderCategorySelector({super.key, required this.onServiceSelected});
+
+  final List<Map<String, dynamic>> categories = [
+    {'icon': Icons.bug_report, 'label': 'Phun thuốc', 'value': 'Phun thuốc'},
+    {'icon': Icons.spa, 'label': 'Bón phân', 'value': 'Bón phân'},
+    {'icon': Icons.search, 'label': 'Khảo sát đất', 'value': 'Khảo sát đất'},
+    {'icon': Icons.agriculture, 'label': 'Gieo hạt', 'value': 'Gieo hạt'},
+    {'icon': Icons.water_drop, 'label': 'Tưới tiêu', 'value': 'Tưới tiêu'},
+  ];
+
+  @override
+  Widget build(BuildContext context) {
+    return SizedBox(
+      height: 100,
+      child: SingleChildScrollView(
+        scrollDirection: Axis.horizontal,
+        child: Row(
+          children: categories.map((item) {
+            return GestureDetector(
+              onTap: () => onServiceSelected(item['value']),
+              child: Container(
+                width: 72,
+                margin: const EdgeInsets.only(right: 16),
+                child: Column(
+                  children: [
+                    CircleAvatar(
+                      backgroundColor: Colors.green.shade100,
+                      radius: 28,
+                      child: Icon(item['icon'], color: Colors.green.shade700),
+                    ),
+                    const SizedBox(height: 6),
+                    Text(
+                      item['label'],
+                      textAlign: TextAlign.center,
+                      style: const TextStyle(fontSize: 12),
+                      overflow: TextOverflow.ellipsis,
+                    ),
+                  ],
+                ),
+              ),
+            );
+          }).toList(),
+        ),
+      ),
     );
   }
 }

@@ -2,6 +2,7 @@ import 'dart:convert';
 import 'package:flutter/material.dart';
 import 'package:http/http.dart' as http;
 import '../../utils/constants.dart';
+import 'FarmerRequestDetailScreen.dart'; // điều chỉnh path nếu cần
 
 class MyRequestsScreen extends StatefulWidget {
   final String token;
@@ -64,6 +65,26 @@ class _MyRequestsScreenState extends State<MyRequestsScreen> {
     }
   }
 
+  Future<void> _resendRequest(String requestId) async {
+    final url = Uri.parse('$baseUrl/farmer/requests/$requestId/resend');
+
+    final res = await http.patch(
+      url,
+      headers: {'Authorization': 'Bearer ${widget.token}'},
+    );
+
+    if (res.statusCode == 200) {
+      ScaffoldMessenger.of(context).showSnackBar(
+        const SnackBar(content: Text('Gửi lại yêu cầu thành công')),
+      );
+      fetchRequests();
+    } else {
+      ScaffoldMessenger.of(context).showSnackBar(
+        const SnackBar(content: Text('Không thể gửi lại yêu cầu')),
+      );
+    }
+  }
+
   void _confirmAndPay(String requestId) async {
     final confirmed = await showDialog<bool>(
       context: context,
@@ -104,50 +125,79 @@ class _MyRequestsScreenState extends State<MyRequestsScreen> {
     final payment = req['payment_status'];
     final requestId = req['_id'];
 
-    return Container(
-      margin: const EdgeInsets.symmetric(horizontal: 16, vertical: 8),
-      padding: const EdgeInsets.all(16),
-      decoration: BoxDecoration(
-        color: Colors.white,
-        borderRadius: BorderRadius.circular(16),
-        boxShadow: const [
-          BoxShadow(
-            color: Colors.black12,
-            blurRadius: 8,
-            offset: Offset(0, 4),
-          )
-        ],
-      ),
-      child: Column(
-        crossAxisAlignment: CrossAxisAlignment.start,
-        children: [
-          Text('$crop - $service',
-              style:
-                  const TextStyle(fontWeight: FontWeight.bold, fontSize: 16)),
-          const SizedBox(height: 6),
-          Text('Diện tích: $area ha'),
-          Text('Ngày yêu cầu: $date'),
-          Text(
-              'Nhà cung cấp: ${provider != null ? provider['company_name'] : 'Tự do'}'),
-          Text('Trạng thái: $status'),
-          Text('Thanh toán: $payment'),
-          if (payment == 'UNPAID' && status == 'COMPLETED')
-            Align(
-              alignment: Alignment.centerRight,
-              child: ElevatedButton(
-                onPressed: () => _confirmAndPay(requestId),
-                style: ElevatedButton.styleFrom(
-                  backgroundColor: Colors.green.shade700,
-                  shape: RoundedRectangleBorder(
-                    borderRadius: BorderRadius.circular(12),
-                  ),
-                ),
-                child: const Text('Thanh toán'),
-              ),
+    return GestureDetector(
+      onTap: () {
+        Navigator.push(
+          context,
+          MaterialPageRoute(
+            builder: (_) => FarmerRequestDetailScreen(
+              token: widget.token,
+              requestId: requestId,
             ),
-        ],
+          ),
+        ).then((_) => fetchRequests()); // reload khi quay lại
+      },
+      child: Container(
+        margin: const EdgeInsets.symmetric(horizontal: 16, vertical: 8),
+        padding: const EdgeInsets.all(16),
+        decoration: BoxDecoration(
+          color: Colors.white,
+          borderRadius: BorderRadius.circular(16),
+          boxShadow: const [
+            BoxShadow(
+              color: Colors.black12,
+              blurRadius: 8,
+              offset: Offset(0, 4),
+            )
+          ],
+        ),
+        child: Column(
+          crossAxisAlignment: CrossAxisAlignment.start,
+          children: [
+            Text('$crop - $service',
+                style:
+                    const TextStyle(fontWeight: FontWeight.bold, fontSize: 16)),
+            const SizedBox(height: 6),
+            Text('Diện tích: $area ha'),
+            Text('Ngày yêu cầu: $date'),
+            Text(
+                'Nhà cung cấp: ${provider != null ? provider['company_name'] : 'Tự do'}'),
+            Text('Trạng thái: $status'),
+            Text('Thanh toán: $payment'),
+            const SizedBox(height: 8),
+            if (payment == 'UNPAID' && status == 'COMPLETED')
+              Align(
+                alignment: Alignment.centerRight,
+                child: ElevatedButton(
+                  onPressed: () => _confirmAndPay(requestId),
+                  style: ElevatedButton.styleFrom(
+                    backgroundColor: Colors.green.shade700,
+                    shape: RoundedRectangleBorder(
+                      borderRadius: BorderRadius.circular(12),
+                    ),
+                  ),
+                  child: const Text('Thanh toán'),
+                ),
+              ),
+            if (status == 'REJECTED')
+              Align(
+                alignment: Alignment.centerRight,
+                child: ElevatedButton(
+                  onPressed: () => _resendRequest(requestId),
+                  style: ElevatedButton.styleFrom(
+                    backgroundColor: Colors.orange.shade700,
+                    shape: RoundedRectangleBorder(
+                      borderRadius: BorderRadius.circular(12),
+                    ),
+                  ),
+                  child: const Text('Gửi lại yêu cầu'),
+                ),
+              ),
+          ],
+        ),
       ),
     );
+
   }
 
   @override

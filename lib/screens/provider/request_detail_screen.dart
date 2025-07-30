@@ -25,7 +25,8 @@ class _RequestDetailScreenState extends State<RequestDetailScreen> {
 
   final TextEditingController _descriptionController = TextEditingController();
   final TextEditingController _attachmentController = TextEditingController();
-  final TextEditingController _invoiceAmountController =TextEditingController();
+  final TextEditingController _invoiceAmountController =
+      TextEditingController();
   final TextEditingController _invoiceNoteController = TextEditingController();
 
   @override
@@ -75,6 +76,24 @@ class _RequestDetailScreenState extends State<RequestDetailScreen> {
     }
   }
 
+  Future<void> _rejectRequest() async {
+    final res = await http.patch(
+      Uri.parse('$baseUrl/provider/requests/${widget.requestId}/reject'),
+      headers: {'Authorization': 'Bearer ${widget.token}'},
+    );
+
+    if (res.statusCode == 200) {
+      ScaffoldMessenger.of(context).showSnackBar(
+        const SnackBar(content: Text('Đã từ chối yêu cầu')),
+      );
+      Navigator.pop(context, true);
+    } else {
+      ScaffoldMessenger.of(context).showSnackBar(
+        const SnackBar(content: Text('Không thể từ chối yêu cầu')),
+      );
+    }
+  }
+
   Future<void> _completeRequest() async {
     setState(() => isCompleting = true);
 
@@ -98,7 +117,7 @@ class _RequestDetailScreenState extends State<RequestDetailScreen> {
       ScaffoldMessenger.of(context).showSnackBar(
         const SnackBar(content: Text('Yêu cầu đã hoàn thành')),
       );
-      Navigator.pop(context, true); // ✅ báo về RequestListScreen để reload
+      Navigator.pop(context, true);
     } else {
       ScaffoldMessenger.of(context).showSnackBar(
         const SnackBar(content: Text('Không thể hoàn thành yêu cầu')),
@@ -136,11 +155,9 @@ class _RequestDetailScreenState extends State<RequestDetailScreen> {
       ScaffoldMessenger.of(context).showSnackBar(
         const SnackBar(content: Text('Lập hóa đơn thành công')),
       );
-      Navigator.pop(
-          context, true); // ✅ reload RequestListScreen sau khi lập hóa đơn
+      Navigator.pop(context, true);
     } else {
       ScaffoldMessenger.of(context).showSnackBar(
-        
         const SnackBar(content: Text('Lỗi khi lập hóa đơn')),
       );
     }
@@ -187,6 +204,12 @@ class _RequestDetailScreenState extends State<RequestDetailScreen> {
                             icon: Icons.check,
                             label: 'Chấp nhận yêu cầu',
                             onPressed: _acceptRequest,
+                          ),
+                          const SizedBox(height: 8),
+                          _buildActionButton(
+                            icon: Icons.close,
+                            label: 'Từ chối yêu cầu',
+                            onPressed: _rejectRequest,
                           ),
                         ],
                         if (status == 'ACCEPTED') ...[
@@ -270,8 +293,6 @@ class _RequestDetailScreenState extends State<RequestDetailScreen> {
                 ),
     );
   }
-
-// === WIDGET HELPERS ===
 
   Widget _buildCardSection(List<Widget> children) {
     return Container(
@@ -370,5 +391,4 @@ class _RequestDetailScreenState extends State<RequestDetailScreen> {
       ),
     );
   }
-
 }

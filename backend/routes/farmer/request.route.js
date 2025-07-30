@@ -9,5 +9,6 @@ router.patch('/:id', verifyToken('farmer'), controller.updateRequest);   // ch�
 router.delete('/:id', verifyToken('farmer'), controller.cancelRequest);  // huỷ yêu cầu
 router.post('/:id/pay', verifyToken('farmer'), controller.payRequest);
 router.post('/:id/rate', verifyToken('farmer'), controller.rateRequest);
+router.patch('/:id/resend', verifyToken('farmer'), controller.resendRequest); // 👈 Gửi lại yêu cầu bị từ chối
 
 module.exports = router;
