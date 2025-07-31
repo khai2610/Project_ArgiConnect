@@ -3,6 +3,7 @@ import 'package:flutter/material.dart';
 import 'package:http/http.dart' as http;
 import '../../utils/constants.dart';
 import 'provider_detail_screen.dart';
+import 'create_request_screen.dart'; // ✅ Thêm dòng này nếu chưa có
 
 class ServiceProvidersMapScreen extends StatefulWidget {
   final String token;
@@ -83,50 +84,110 @@ class _ServiceProvidersMapScreenState extends State<ServiceProvidersMapScreen> {
   Widget _buildProviderCard(Map<String, dynamic> provider) {
     final ratings = provider['ratings'] as List? ?? [];
 
-    return GestureDetector(
-      onTap: () {
-        Navigator.push(
-          context,
-          MaterialPageRoute(
-            builder: (_) => ProviderDetailScreen(
-              providerId: provider['_id']?.toString() ?? '',
-              farmerId: widget.farmerId,
-              token: widget.token,
-            ),
-          ),
-        );
-      },
-      child: Card(
-        margin: const EdgeInsets.symmetric(horizontal: 16, vertical: 8),
-        shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12)),
-        child: ExpansionTile(
-          title: Text(provider['company_name']?.toString() ?? 'Không rõ'),
-          subtitle: Text(provider['address']?.toString() ?? ''),
+    final service = (provider['services'] as List?)?.firstWhere(
+      (s) =>
+          (s['name'] as String?)?.toLowerCase().trim() ==
+          widget.serviceType.toLowerCase().trim(),
+      orElse: () => null,
+    );
+
+    final price = service?['price'];
+    final unit = service?['unit'] ?? 'VNĐ/ha';
+
+    return Card(
+      margin: const EdgeInsets.symmetric(horizontal: 16, vertical: 8),
+      shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12)),
+      child: ExpansionTile(
+        title: Text(provider['company_name']?.toString() ?? 'Không rõ'),
+        subtitle: Column(
+          crossAxisAlignment: CrossAxisAlignment.start,
           children: [
-            if (ratings.isEmpty)
-              const Padding(
-                padding: EdgeInsets.all(12),
-                child: Text('Chưa có đánh giá'),
-              )
-            else
-              ...ratings.map((r) => ListTile(
-                    title: _buildRatingStars(r['rating'] ?? 0),
-                    subtitle: Column(
-                      crossAxisAlignment: CrossAxisAlignment.start,
-                      children: [
-                        if (r['comment'] != null &&
-                            r['comment'].toString().isNotEmpty)
-                          Text('Nhận xét: ${r['comment']}'),
-                        if (r['crop_type'] != null)
-                          Text('Cây trồng: ${r['crop_type']}'),
-                        if (r['preferred_date'] != null)
-                          Text(
-                              'Ngày: ${r['preferred_date'].toString().split('T')[0]}'),
-                      ],
-                    ),
-                  )),
+            Text(provider['address']?.toString() ?? ''),
+            if (price != null)
+              Padding(
+                padding: const EdgeInsets.only(top: 4),
+                child: Text(
+                  'Giá dịch vụ: ${price.toString()} $unit',
+                  style: const TextStyle(color: Colors.green),
+                ),
+              ),
           ],
         ),
+        children: [
+          Padding(
+            padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 8),
+            child: Row(
+              children: [
+                Expanded(
+                  child: ElevatedButton.icon(
+                    icon: const Icon(Icons.message),
+                    label: const Text('Nhắn tin'),
+                    style: ElevatedButton.styleFrom(
+                      backgroundColor: Colors.green.shade600,
+                    ),
+                    onPressed: () {
+                      Navigator.push(
+                        context,
+                        MaterialPageRoute(
+                          builder: (_) => ProviderDetailScreen(
+                            providerId: provider['_id'],
+                            farmerId: widget.farmerId,
+                            token: widget.token,
+                          ),
+                        ),
+                      );
+                    },
+                  ),
+                ),
+                const SizedBox(width: 12),
+                Expanded(
+                  child: ElevatedButton.icon(
+                    icon: const Icon(Icons.send),
+                    label: const Text('Tạo yêu cầu'),
+                    style: ElevatedButton.styleFrom(
+                      backgroundColor: Colors.orange.shade700,
+                    ),
+                    onPressed: () {
+                      Navigator.push(
+                        context,
+                        MaterialPageRoute(
+                          builder: (_) => CreateRequestScreen(
+                            token: widget.token,
+                            initialProviderId: provider['_id'],
+                            initialServiceType: widget.serviceType,
+                          ),
+                        ),
+                      );
+                    },
+                  ),
+                ),
+              ],
+            ),
+          ),
+          const Divider(),
+          if (ratings.isEmpty)
+            const Padding(
+              padding: EdgeInsets.all(12),
+              child: Text('Chưa có đánh giá'),
+            )
+          else
+            ...ratings.map((r) => ListTile(
+                  title: _buildRatingStars(r['rating'] ?? 0),
+                  subtitle: Column(
+                    crossAxisAlignment: CrossAxisAlignment.start,
+                    children: [
+                      if (r['comment'] != null &&
+                          r['comment'].toString().isNotEmpty)
+                        Text('Nhận xét: ${r['comment']}'),
+                      if (r['crop_type'] != null)
+                        Text('Cây trồng: ${r['crop_type']}'),
+                      if (r['preferred_date'] != null)
+                        Text(
+                            'Ngày: ${r['preferred_date'].toString().split('T')[0]}'),
+                    ],
+                  ),
+                )),
+        ],
       ),
     );
   }

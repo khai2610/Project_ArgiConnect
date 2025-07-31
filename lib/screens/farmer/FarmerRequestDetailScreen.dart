@@ -2,6 +2,7 @@ import 'dart:convert';
 import 'package:flutter/material.dart';
 import 'package:http/http.dart' as http;
 import '../../utils/constants.dart';
+import 'create_request_screen.dart'; // chỉnh lại nếu path khác
 
 class FarmerRequestDetailScreen extends StatefulWidget {
   final String token;
@@ -49,6 +50,8 @@ class _FarmerRequestDetailScreenState extends State<FarmerRequestDetailScreen> {
       );
       setState(() {
         request = found;
+        _ratingController.text = request?['rating']?.toString() ?? '';
+        _commentController.text = request?['comment'] ?? '';
         isLoading = false;
       });
     } else {
@@ -179,6 +182,36 @@ class _FarmerRequestDetailScreenState extends State<FarmerRequestDetailScreen> {
                           showLoading: isResending,
                           color: Colors.orange.shade700,
                         ),
+                      if (status == 'PENDING')
+                        _buildActionButton(
+                          icon: Icons.edit,
+                          label: 'Chỉnh sửa yêu cầu',
+                          onPressed: () {
+                            showModalBottomSheet(
+                              context: context,
+                              isScrollControlled: true,
+                              backgroundColor: Colors.transparent,
+                              builder: (context) => DraggableScrollableSheet(
+                                expand: false,
+                                initialChildSize: 0.95,
+                                maxChildSize: 0.95,
+                                builder: (_, controller) => Container(
+                                  decoration: const BoxDecoration(
+                                    color: Colors.white,
+                                    borderRadius: BorderRadius.vertical(
+                                        top: Radius.circular(20)),
+                                  ),
+                                  padding: const EdgeInsets.only(top: 12),
+                                  child: CreateRequestScreen(
+                                    token: widget.token,
+                                    editingRequest: request,
+                                  ),
+                                ),
+                              ),
+                            ).then((_) => fetchRequest());
+                          },
+                          color: Colors.blueGrey,
+                        ),
                       if (status == 'COMPLETED' && paymentStatus == 'UNPAID')
                         _buildActionButton(
                           icon: Icons.payment,
@@ -187,12 +220,14 @@ class _FarmerRequestDetailScreenState extends State<FarmerRequestDetailScreen> {
                           showLoading: isPaying,
                           color: Colors.green.shade700,
                         ),
-                      if (status == 'COMPLETED' &&
-                          paymentStatus == 'PAID' &&
-                          !rated) ...[
+                      if (status == 'COMPLETED' && paymentStatus == 'PAID') ...[
                         const Text('Đánh giá dịch vụ',
                             style: TextStyle(
                                 fontWeight: FontWeight.bold, fontSize: 16)),
+                        const SizedBox(height: 8),
+                        Text('Điểm hiện tại: ${request?['rating'] ?? '-'}'),
+                        if ((request?['comment'] ?? '').toString().isNotEmpty)
+                          Text('Góp ý hiện tại: ${request?['comment']}'),
                         const SizedBox(height: 8),
                         _buildTextField(
                           controller: _ratingController,
@@ -208,7 +243,7 @@ class _FarmerRequestDetailScreenState extends State<FarmerRequestDetailScreen> {
                         const SizedBox(height: 12),
                         _buildActionButton(
                           icon: Icons.star,
-                          label: 'Gửi đánh giá',
+                          label: rated ? 'Cập nhật đánh giá' : 'Gửi đánh giá',
                           onPressed: isRating ? null : _rate,
                           showLoading: isRating,
                           color: Colors.blueGrey,

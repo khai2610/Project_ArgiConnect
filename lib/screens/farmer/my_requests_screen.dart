@@ -15,7 +15,8 @@ class MyRequestsScreen extends StatefulWidget {
 class _MyRequestsScreenState extends State<MyRequestsScreen> {
   List<dynamic> requests = [];
   bool isLoading = true;
-  String paymentFilter = 'ALL'; // ALL | PAID | UNPAID
+  String statusFilter =
+      'ALL'; // ALL | COMPLETED | PENDING | REJECTED | ACCEPTED
 
   @override
   void initState() {
@@ -112,8 +113,6 @@ class _MyRequestsScreenState extends State<MyRequestsScreen> {
 
   Widget _buildRequestCard(Map<String, dynamic> req) {
     final provider = req['provider_id'];
-    final crop = req['crop_type'] ?? 'Không rõ';
-    final service = req['service_type'] ?? 'Không rõ';
     final area = req['area_ha'] ?? 0.0;
     final date = req['preferred_date'] != null
         ? DateTime.parse(req['preferred_date'])
@@ -122,8 +121,9 @@ class _MyRequestsScreenState extends State<MyRequestsScreen> {
             .split(' ')[0]
         : 'Chưa chọn';
     final status = req['status'];
-    final payment = req['payment_status'];
     final requestId = req['_id'];
+    final rating = req['rating'];
+    final comment = req['comment'];
 
     return GestureDetector(
       onTap: () {
@@ -135,7 +135,7 @@ class _MyRequestsScreenState extends State<MyRequestsScreen> {
               requestId: requestId,
             ),
           ),
-        ).then((_) => fetchRequests()); // reload khi quay lại
+        ).then((_) => fetchRequests());
       },
       child: Container(
         margin: const EdgeInsets.symmetric(horizontal: 16, vertical: 8),
@@ -154,31 +154,12 @@ class _MyRequestsScreenState extends State<MyRequestsScreen> {
         child: Column(
           crossAxisAlignment: CrossAxisAlignment.start,
           children: [
-            Text('$crop - $service',
-                style:
-                    const TextStyle(fontWeight: FontWeight.bold, fontSize: 16)),
-            const SizedBox(height: 6),
             Text('Diện tích: $area ha'),
-            Text('Ngày yêu cầu: $date'),
+            Text('Ngày hoàn thành: $date'),
             Text(
                 'Nhà cung cấp: ${provider != null ? provider['company_name'] : 'Tự do'}'),
             Text('Trạng thái: $status'),
-            Text('Thanh toán: $payment'),
             const SizedBox(height: 8),
-            if (payment == 'UNPAID' && status == 'COMPLETED')
-              Align(
-                alignment: Alignment.centerRight,
-                child: ElevatedButton(
-                  onPressed: () => _confirmAndPay(requestId),
-                  style: ElevatedButton.styleFrom(
-                    backgroundColor: Colors.green.shade700,
-                    shape: RoundedRectangleBorder(
-                      borderRadius: BorderRadius.circular(12),
-                    ),
-                  ),
-                  child: const Text('Thanh toán'),
-                ),
-              ),
             if (status == 'REJECTED')
               Align(
                 alignment: Alignment.centerRight,
@@ -193,18 +174,37 @@ class _MyRequestsScreenState extends State<MyRequestsScreen> {
                   child: const Text('Gửi lại yêu cầu'),
                 ),
               ),
+            if (rating != null)
+              Column(
+                crossAxisAlignment: CrossAxisAlignment.start,
+                children: [
+                  const SizedBox(height: 12),
+                  Row(
+                    children: [
+                      const Text('Đánh giá: ',
+                          style: TextStyle(fontWeight: FontWeight.bold)),
+                      Icon(Icons.star, color: Colors.amber),
+                      Text('$rating / 5'),
+                    ],
+                  ),
+                  if (comment != null && comment.toString().trim().isNotEmpty)
+                    Padding(
+                      padding: const EdgeInsets.only(top: 4.0),
+                      child: Text('Nhận xét: $comment'),
+                    ),
+                ],
+              ),
           ],
         ),
       ),
     );
-
   }
 
   @override
   Widget build(BuildContext context) {
-    final filteredRequests = paymentFilter == 'ALL'
+    final filteredRequests = statusFilter == 'ALL'
         ? requests
-        : requests.where((r) => r['payment_status'] == paymentFilter).toList();
+        : requests.where((r) => r['status'] == statusFilter).toList();
 
     return Scaffold(
       backgroundColor: Colors.green.shade50,
@@ -222,21 +222,25 @@ class _MyRequestsScreenState extends State<MyRequestsScreen> {
                     children: [
                       const Icon(Icons.filter_alt_outlined),
                       const SizedBox(width: 8),
-                      const Text('Lọc thanh toán:'),
+                      const Text('Lọc trạng thái:'),
                       const SizedBox(width: 12),
                       DropdownButton<String>(
-                        value: paymentFilter,
+                        value: statusFilter,
                         items: const [
                           DropdownMenuItem(value: 'ALL', child: Text('Tất cả')),
                           DropdownMenuItem(
-                              value: 'PAID', child: Text('Đã thanh toán')),
+                              value: 'COMPLETED', child: Text('Hoàn thành')),
                           DropdownMenuItem(
-                              value: 'UNPAID', child: Text('Chưa thanh toán')),
+                              value: 'PENDING', child: Text('Chờ xử lý')),
+                          DropdownMenuItem(
+                              value: 'ACCEPTED', child: Text('Đã chấp nhận')),
+                          DropdownMenuItem(
+                              value: 'REJECTED', child: Text('Từ chối')),
                         ],
                         onChanged: (value) {
                           if (value != null) {
                             setState(() {
-                              paymentFilter = value;
+                              statusFilter = value;
                             });
                           }
                         },

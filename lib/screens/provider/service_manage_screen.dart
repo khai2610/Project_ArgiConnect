@@ -14,8 +14,11 @@ class ServiceManageScreen extends StatefulWidget {
 class _ServiceManageScreenState extends State<ServiceManageScreen> {
   List<dynamic> services = [];
   bool isLoading = true;
+
   final _nameController = TextEditingController();
   final _descController = TextEditingController();
+  final _priceController = TextEditingController();
+  final _unitController = TextEditingController();
 
   @override
   void initState() {
@@ -36,20 +39,28 @@ class _ServiceManageScreenState extends State<ServiceManageScreen> {
     }
   }
 
-  Future<void> addService(String name, String description) async {
+  Future<void> addService(
+      String name, String description, String price, String unit) async {
     final res = await http.post(
       Uri.parse('$baseUrl/provider/services'),
       headers: {
         'Authorization': 'Bearer ${widget.token}',
         'Content-Type': 'application/json',
       },
-      body: json.encode({'name': name, 'description': description}),
+      body: json.encode({
+        'name': name,
+        'description': description,
+        'price': double.tryParse(price) ?? 0,
+        'unit': unit
+      }),
     );
 
     if (res.statusCode == 201) {
       fetchServices();
       _nameController.clear();
       _descController.clear();
+      _priceController.clear();
+      _unitController.clear();
       ScaffoldMessenger.of(context).showSnackBar(
         const SnackBar(content: Text('Thêm dịch vụ thành công')),
       );
@@ -73,28 +84,35 @@ class _ServiceManageScreenState extends State<ServiceManageScreen> {
     }
   }
 
-  Future<void> updateDescription(String name, String description) async {
+  Future<void> updateService(
+      String name, String description, String price, String unit) async {
     final res = await http.patch(
       Uri.parse('$baseUrl/provider/services/$name'),
       headers: {
         'Authorization': 'Bearer ${widget.token}',
         'Content-Type': 'application/json',
       },
-      body: json.encode({'description': description}),
+      body: json.encode({
+        'description': description,
+        'price': double.tryParse(price),
+        'unit': unit
+      }),
     );
 
     if (res.statusCode == 200) {
       fetchServices();
       ScaffoldMessenger.of(context).showSnackBar(
-        const SnackBar(content: Text('Cập nhật mô tả thành công')),
+        const SnackBar(content: Text('Cập nhật dịch vụ thành công')),
       );
     }
   }
 
   Widget _buildServiceCard(Map<String, dynamic> service) {
     final name = service['name'];
-    final desc = service['description'] ?? '';
-    final descCtrl = TextEditingController(text: desc);
+    final descCtrl = TextEditingController(text: service['description'] ?? '');
+    final priceCtrl =
+        TextEditingController(text: service['price']?.toString() ?? '');
+    final unitCtrl = TextEditingController(text: service['unit'] ?? '');
 
     return Container(
       margin: const EdgeInsets.symmetric(horizontal: 16, vertical: 8),
@@ -103,11 +121,7 @@ class _ServiceManageScreenState extends State<ServiceManageScreen> {
         color: Colors.white,
         borderRadius: BorderRadius.circular(16),
         boxShadow: const [
-          BoxShadow(
-            color: Colors.black12,
-            blurRadius: 6,
-            offset: Offset(0, 3),
-          )
+          BoxShadow(color: Colors.black12, blurRadius: 6, offset: Offset(0, 3))
         ],
       ),
       child: Column(
@@ -126,11 +140,29 @@ class _ServiceManageScreenState extends State<ServiceManageScreen> {
             ),
           ),
           const SizedBox(height: 8),
+          TextField(
+            controller: priceCtrl,
+            keyboardType: TextInputType.number,
+            decoration: const InputDecoration(
+              labelText: 'Giá (VND)',
+              border: OutlineInputBorder(),
+            ),
+          ),
+          const SizedBox(height: 8),
+          TextField(
+            controller: unitCtrl,
+            decoration: const InputDecoration(
+              labelText: 'Đơn vị (VD: VND/ha)',
+              border: OutlineInputBorder(),
+            ),
+          ),
+          const SizedBox(height: 8),
           Row(
             mainAxisAlignment: MainAxisAlignment.end,
             children: [
               TextButton.icon(
-                onPressed: () => updateDescription(name, descCtrl.text),
+                onPressed: () => updateService(
+                    name, descCtrl.text, priceCtrl.text, unitCtrl.text),
                 icon: const Icon(Icons.save),
                 label: const Text('Cập nhật'),
               ),
@@ -154,11 +186,7 @@ class _ServiceManageScreenState extends State<ServiceManageScreen> {
         color: Colors.white,
         borderRadius: BorderRadius.circular(16),
         boxShadow: const [
-          BoxShadow(
-            color: Colors.black12,
-            blurRadius: 6,
-            offset: Offset(0, 3),
-          )
+          BoxShadow(color: Colors.black12, blurRadius: 6, offset: Offset(0, 3))
         ],
       ),
       child: Column(
@@ -183,11 +211,32 @@ class _ServiceManageScreenState extends State<ServiceManageScreen> {
             ),
           ),
           const SizedBox(height: 12),
+          TextField(
+            controller: _priceController,
+            keyboardType: TextInputType.number,
+            decoration: const InputDecoration(
+              labelText: 'Giá (VND)',
+              border: OutlineInputBorder(),
+            ),
+          ),
+          const SizedBox(height: 12),
+          TextField(
+            controller: _unitController,
+            decoration: const InputDecoration(
+              labelText: 'Đơn vị (VD: VND/ha)',
+              border: OutlineInputBorder(),
+            ),
+          ),
+          const SizedBox(height: 12),
           SizedBox(
             width: double.infinity,
             child: ElevatedButton.icon(
-              onPressed: () =>
-                  addService(_nameController.text, _descController.text),
+              onPressed: () => addService(
+                _nameController.text,
+                _descController.text,
+                _priceController.text,
+                _unitController.text,
+              ),
               icon: const Icon(Icons.add),
               label: const Text('Thêm dịch vụ'),
               style: ElevatedButton.styleFrom(
@@ -211,7 +260,9 @@ class _ServiceManageScreenState extends State<ServiceManageScreen> {
               child: ListView(
                 children: [
                   _buildAddServiceForm(),
-                  ...services.map((s) => _buildServiceCard(s as Map<String, dynamic>)).toList(),
+                  ...services
+                      .map((s) => _buildServiceCard(s as Map<String, dynamic>))
+                      .toList(),
                 ],
               ),
             ),
