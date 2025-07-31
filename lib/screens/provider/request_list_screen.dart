@@ -17,16 +17,11 @@ class RequestListScreen extends StatefulWidget {
 
 class _RequestListScreenState extends State<RequestListScreen> {
   List<dynamic> requests = [];
-  List<dynamic> assignedRequests = [];
-  List<dynamic> openRequests = [];
-  List<dynamic> acceptedRequests = [];
-  List<dynamic> completedRequests = [];
-
+  String filterStatus = 'ALL';
   int completedToday = 0;
   int revenueToday = 0;
   bool isLoading = true;
   Position? _currentPosition;
-  GoogleMapController? _mapController;
   final Map<MarkerId, Marker> _markers = {};
 
   @override
@@ -58,56 +53,19 @@ class _RequestListScreenState extends State<RequestListScreen> {
     }
   }
 
-  BitmapDescriptor _getMarkerColor(String status) {
-    switch (status) {
-      case 'PENDING':
-        return BitmapDescriptor.defaultMarkerWithHue(
-            BitmapDescriptor.hueOrange);
-      case 'ACCEPTED':
-        return BitmapDescriptor.defaultMarkerWithHue(BitmapDescriptor.hueBlue);
-      case 'COMPLETED':
-        return BitmapDescriptor.defaultMarkerWithHue(BitmapDescriptor.hueGreen);
-      case 'REJECTED':
-        return BitmapDescriptor.defaultMarkerWithHue(BitmapDescriptor.hueRed);
-      default:
-        return BitmapDescriptor.defaultMarker;
-    }
-  }
-
   Future<void> fetchRequests() async {
-    try {
-      setState(() => isLoading = true);
-      final res = await http.get(
-        Uri.parse('$baseUrl/provider/requests'),
-        headers: {'Authorization': 'Bearer ${widget.token}'},
-      );
-      if (res.statusCode == 200) {
-        final data = json.decode(res.body);
-        if (data is List) {
-          requests = data;
-
-          assignedRequests = requests
-              .where(
-                  (r) => r['provider_id'] != null && r['status'] == 'PENDING')
-              .toList();
-
-          openRequests = requests
-              .where(
-                  (r) => r['provider_id'] == null && r['status'] == 'PENDING')
-              .toList();
-
-          acceptedRequests =
-              requests.where((r) => r['status'] == 'ACCEPTED').toList();
-
-          completedRequests =
-              requests.where((r) => r['status'] == 'COMPLETED').toList();
-
-          _setMarkers();
-        }
+    setState(() => isLoading = true);
+    final res = await http.get(
+      Uri.parse('$baseUrl/provider/requests'),
+      headers: {'Authorization': 'Bearer ${widget.token}'},
+    );
+    if (res.statusCode == 200) {
+      final data = json.decode(res.body);
+      if (data is List) {
+        setState(() => requests = data);
       }
-    } finally {
-      setState(() => isLoading = false);
     }
+    setState(() => isLoading = false);
   }
 
   Future<void> fetchSummary() async {
@@ -121,43 +79,8 @@ class _RequestListScreenState extends State<RequestListScreen> {
         completedToday = json['completedToday'] ?? 0;
         revenueToday = json['revenueToday'] ?? 0;
       });
-    } else {
-      debugPrint('Lỗi khi gọi summary: ${res.statusCode} - ${res.body}');
     }
   }
-
-
-
-  void _setMarkers() {
-    _markers.clear();
-    for (var req in requests) {
-      final loc = req['field_location']?['coordinates'];
-      if (loc != null && loc['lat'] != null && loc['lng'] != null) {
-        final id = req['_id'];
-        final crop = req['crop_type'] ?? '---';
-        final service = req['service_type'] ?? '---';
-        final status = req['status'] ?? '---';
-        final phone = req['farmer_id']?['phone'] ?? '---';
-        final area = _parseArea(req['area_ha']);
-
-        final marker = Marker(
-          markerId: MarkerId(id),
-          position: LatLng(
-            (loc['lat'] as num).toDouble(),
-            (loc['lng'] as num).toDouble(),
-          ),
-          icon: _getMarkerColor(status),
-          infoWindow: InfoWindow(
-            title: '$crop - $service',
-            snippet: 'DT: ${area}ha | $status\n📞 $phone',
-            onTap: () => _showRequestInfo(req),
-          ),
-        );
-        _markers[MarkerId(id)] = marker;
-      }
-    }
-  }
-
 
   double _parseArea(dynamic raw) {
     if (raw == null) return 0.0;
@@ -167,252 +90,13 @@ class _RequestListScreenState extends State<RequestListScreen> {
     return 0.0;
   }
 
-  void _showRequestInfo(Map<String, dynamic> req) {
-    final crop = req['crop_type'] ?? '---';
-    final service = req['service_type'] ?? '---';
-    final area = _parseArea(req['area_ha']);
-    final date = req['preferred_date'] != null
-        ? DateTime.parse(req['preferred_date'])
-            .toLocal()
-            .toString()
-            .split(' ')[0]
-        : '---';
-    final status = req['status'] ?? '---';
-    final phone = req['farmer_id']?['phone'] ?? '---';
-
-    showModalBottomSheet(
-      context: context,
-      shape: const RoundedRectangleBorder(
-        borderRadius: BorderRadius.vertical(top: Radius.circular(16)),
-      ),
-      builder: (_) => Padding(
-        padding: const EdgeInsets.all(16),
-        child: Column(
-          mainAxisSize: MainAxisSize.min,
-          crossAxisAlignment: CrossAxisAlignment.start,
-          children: [
-            Text('$crop - $service',
-                style:
-                    const TextStyle(fontWeight: FontWeight.bold, fontSize: 18)),
-            const SizedBox(height: 8),
-            Text('Diện tích: $area ha'),
-            Text('Ngày thực hiện: $date'),
-            Text('Trạng thái: $status'),
-            Text('📞 $phone'),
-            const SizedBox(height: 16),
-            Row(
-              children: [
-                Expanded(
-                  child: ElevatedButton.icon(
-                    icon: const Icon(Icons.check),
-                    label: const Text('Chấp nhận'),
-                    onPressed: () => _acceptRequest(req['_id']),
-                  ),
-                ),
-                const SizedBox(width: 12),
-                Expanded(
-                  child: OutlinedButton.icon(
-                    icon: const Icon(Icons.chat),
-                    label: const Text('Nhắn tin'),
-                    onPressed: () => _chatWithFarmer(req['farmer_id']),
-                  ),
-                ),
-              ],
-            )
-          ],
-        ),
-      ),
-    );
+  List<dynamic> get filteredRequests {
+    if (filterStatus == 'ALL') return requests;
+    return requests.where((r) => r['status'] == filterStatus).toList();
   }
 
-  Future<void> _acceptRequest(String requestId) async {
-    final res = await http.patch(
-      Uri.parse('$baseUrl/provider/requests/$requestId/accept'),
-      headers: {'Authorization': 'Bearer ${widget.token}'},
-    );
-    if (res.statusCode == 200) {
-      ScaffoldMessenger.of(context).showSnackBar(
-          const SnackBar(content: Text('✅ Đã chấp nhận yêu cầu')));
-      fetchRequests();
-    } else {
-      final body = json.decode(res.body);
-      final msg = body['message'] ?? '❌ Lỗi khi chấp nhận';
-      ScaffoldMessenger.of(context).showSnackBar(SnackBar(content: Text(msg)));
-    }
-  }
-
-  void _chatWithFarmer(dynamic farmer) {
-    ScaffoldMessenger.of(context).showSnackBar(
-      SnackBar(
-          content: Text('💬 Mở chat với ${farmer?['name'] ?? 'nông dân'}')),
-    );
-  }
-
-  @override
-  Widget build(BuildContext context) {
-    final LatLng initialPosition = _currentPosition != null
-        ? LatLng(_currentPosition!.latitude, _currentPosition!.longitude)
-        : const LatLng(10.762622, 106.660172);
-
-    return Scaffold(
-      backgroundColor: Colors.green.shade50,
-      appBar: AppBar(
-        backgroundColor: Colors.green.shade700,
-        title: const Text('Yêu cầu gần bạn'),
-        actions: [
-          IconButton(icon: const Icon(Icons.refresh), onPressed: fetchRequests),
-        ],
-      ),
-      body: isLoading
-          ? const Center(child: CircularProgressIndicator())
-          : RefreshIndicator(
-              onRefresh: fetchRequests,
-              child: ListView(
-                children: [
-                  _buildTodaySummary(),
-                  _buildAssignedRequests(),
-                  _buildMapCard(initialPosition),
-                  _buildAcceptedRequests(),
-                  _buildCompletedRequests(),
-                  _buildRequestLists(),
-                ],
-              ),
-            ),
-    );
-  }
-
-  Widget _buildTodaySummary() {
-    return Card(
-      margin: const EdgeInsets.all(12),
-      shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12)),
-      child: Padding(
-        padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 12),
-        child: Row(
-          mainAxisAlignment: MainAxisAlignment.spaceEvenly,
-          children: [
-            Expanded(
-              child: Column(
-                children: [
-                  Row(
-                    mainAxisAlignment: MainAxisAlignment.center,
-                    children: const [
-                      Icon(Icons.task_alt, color: Colors.green, size: 18),
-                      SizedBox(width: 6),
-                      Text('Hôm nay đã bay',
-                          style: TextStyle(fontWeight: FontWeight.bold)),
-                    ],
-                  ),
-                  const SizedBox(height: 4),
-                  Text('$completedToday', style: const TextStyle(fontSize: 16)),
-                ],
-              ),
-            ),
-            Expanded(
-              child: Column(
-                children: [
-                  Row(
-                    mainAxisAlignment: MainAxisAlignment.center,
-                    children: const [
-                      Icon(Icons.attach_money, color: Colors.orange, size: 18),
-                      SizedBox(width: 6),
-                      Text('Doanh thu hôm nay',
-                          style: TextStyle(fontWeight: FontWeight.bold)),
-                    ],
-                  ),
-                  const SizedBox(height: 4),
-                  Text('${revenueToday}đ',
-                      style: const TextStyle(fontSize: 16)),
-                ],
-              ),
-            ),
-          ],
-        ),
-      ),
-    );
-  }
-
-  Widget _buildAssignedRequests() {
-    if (assignedRequests.isEmpty) {
-      return Padding(
-        padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 8),
-        child: Container(
-          padding: const EdgeInsets.all(16),
-          decoration: BoxDecoration(
-            color: Colors.orange.shade50,
-            border: Border.all(color: Colors.orange),
-            borderRadius: BorderRadius.circular(12),
-          ),
-          child: Row(
-            children: const [
-              Icon(Icons.info_outline, color: Colors.orange),
-              SizedBox(width: 8),
-              Expanded(child: Text('Hiện tại không có yêu cầu được chỉ định.')),
-            ],
-          ),
-        ),
-      );
-    }
-
-    return Column(
-      crossAxisAlignment: CrossAxisAlignment.start,
-      children: [
-        const Padding(
-          padding: EdgeInsets.symmetric(horizontal: 16, vertical: 8),
-          child: Text(
-            '📌 Yêu cầu được chỉ định',
-            style: TextStyle(fontWeight: FontWeight.bold, fontSize: 16),
-          ),
-        ),
-        ...assignedRequests.map((req) => _buildRequestCard(req)).toList(),
-      ],
-    );
-  }
-
-  Widget _buildMapCard(LatLng initialPosition) {
-    return Padding(
-      padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 8),
-      child: ElevatedButton.icon(
-        style: ElevatedButton.styleFrom(
-          backgroundColor: Colors.green.shade700,
-          padding: const EdgeInsets.symmetric(vertical: 12),
-        ),
-        icon: const Icon(Icons.map),
-        label: const Text('Xem yêu cầu trên bản đồ'),
-        onPressed: () {
-          Navigator.push(
-            context,
-            MaterialPageRoute(
-              builder: (_) => ProviderMapScreen(token: widget.token),
-            ),
-          );
-        },
-      ),
-    );
-  }
-
-  Widget _buildRequestLists() {
-      return Column(
-        crossAxisAlignment: CrossAxisAlignment.start,
-        children: [
-          if (assignedRequests.isNotEmpty) ...[
-            const Padding(
-              padding: EdgeInsets.symmetric(horizontal: 16, vertical: 8),
-              child: Text('📌 Yêu cầu chỉ định',
-                  style: TextStyle(fontWeight: FontWeight.bold)),
-            ),
-            ...assignedRequests.map(_buildRequestCard),
-          ],
-          if (openRequests.isNotEmpty) ...[
-            const Padding(
-              padding: EdgeInsets.symmetric(horizontal: 16, vertical: 8),
-              child: Text('📂 Yêu cầu tự do',
-                  style: TextStyle(fontWeight: FontWeight.bold)),
-            ),
-            ...openRequests.map(_buildRequestCard),
-          ],
-        ],
-      );
-    }
+  List<dynamic> get ratedRequests =>
+      requests.where((r) => r['rating'] != null).toList();
 
   Widget _buildRequestCard(dynamic req) {
     final crop = req['crop_type'] ?? '---';
@@ -424,11 +108,7 @@ class _RequestListScreenState extends State<RequestListScreen> {
             .toString()
             .split(' ')[0]
         : '---';
-
     final status = req['status'];
-    final isNavigatable =
-        status == 'PENDING' || status == 'ACCEPTED' || status == 'COMPLETED';
-
 
     return Card(
       margin: const EdgeInsets.symmetric(horizontal: 16, vertical: 8),
@@ -440,68 +120,211 @@ class _RequestListScreenState extends State<RequestListScreen> {
           children: [
             Text('Diện tích: $area ha'),
             Text('Ngày thực hiện: $date'),
+            Text('Trạng thái: $status'),
           ],
         ),
-        trailing: isNavigatable
-            ? const Icon(Icons.arrow_forward_ios, size: 16)
-            : null,
-        onTap: isNavigatable
-            ? () async {
-                final result = await Navigator.push(
-                  context,
-                  MaterialPageRoute(
-                    builder: (_) => RequestDetailScreen(
-                      token: widget.token,
-                      requestId: req['_id'],
-                    ),
-                  ),
-                );
-
-                if (result == true) {
-                  fetchRequests();
-                  fetchSummary();
-        // ✅ cập nhật lại danh sách & thống kê
-                }
-              }
-            : null,
+        trailing: const Icon(Icons.arrow_forward_ios, size: 16),
+        onTap: () async {
+          final result = await Navigator.push(
+            context,
+            MaterialPageRoute(
+              builder: (_) => RequestDetailScreen(
+                token: widget.token,
+                requestId: req['_id'],
+              ),
+            ),
+          );
+          if (result == true) {
+            fetchRequests();
+            fetchSummary();
+          }
+        },
       ),
     );
   }
 
-  Widget _buildAcceptedRequests() {
-      if (acceptedRequests.isEmpty) return const SizedBox.shrink();
+  Widget _buildRatingCard(dynamic req) {
+    final farmer = req['farmer_id'];
+    final comment = req['comment'];
+    final rating = req['rating'];
 
-      return Column(
-        crossAxisAlignment: CrossAxisAlignment.start,
-        children: [
-          const Padding(
-            padding: EdgeInsets.symmetric(horizontal: 16, vertical: 8),
-            child: Text(
-              '✅ Yêu cầu đã nhận',
-              style: TextStyle(fontWeight: FontWeight.bold, fontSize: 16),
+    return Card(
+      margin: const EdgeInsets.symmetric(horizontal: 16, vertical: 6),
+      shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12)),
+      child: Padding(
+        padding: const EdgeInsets.all(12),
+        child: Column(
+          crossAxisAlignment: CrossAxisAlignment.start,
+          children: [
+            Row(
+              children: [
+                ...List.generate(
+                  5,
+                  (index) => Icon(
+                    index < rating ? Icons.star : Icons.star_border,
+                    color: Colors.amber,
+                  ),
+                ),
+                const SizedBox(width: 8),
+                Text(
+                  '$rating / 5',
+                  style: const TextStyle(fontWeight: FontWeight.bold),
+                ),
+              ],
             ),
-          ),
-          ...acceptedRequests.map((req) => _buildRequestCard(req)).toList(),
-        ],
-      );
-    }
-
-  Widget _buildCompletedRequests() {
-    if (completedRequests.isEmpty) return const SizedBox.shrink();
-
-    return Column(
-      crossAxisAlignment: CrossAxisAlignment.start,
-      children: [
-        const Padding(
-          padding: EdgeInsets.symmetric(horizontal: 16, vertical: 8),
-          child: Text(
-            '✅ Yêu cầu đã hoàn thành',
-            style: TextStyle(fontWeight: FontWeight.bold, fontSize: 16),
-          ),
+            if (comment != null && comment.toString().trim().isNotEmpty)
+              Padding(
+                padding: const EdgeInsets.only(top: 6.0),
+                child: Text('📝 Nhận xét: $comment'),
+              ),
+            if (farmer != null)
+              Padding(
+                padding: const EdgeInsets.only(top: 4.0),
+                child: Text('👤 ${farmer['name'] ?? 'Nông dân'}'),
+              ),
+          ],
         ),
-        ...completedRequests.map((req) => _buildRequestCard(req)).toList(),
-      ],
+      ),
     );
   }
 
+  Widget _buildSummaryCard() {
+    return Card(
+      margin: const EdgeInsets.all(12),
+      shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12)),
+      child: Padding(
+        padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 12),
+        child: Row(
+          mainAxisAlignment: MainAxisAlignment.spaceEvenly,
+          children: [
+            // ✅ Hôm nay đã bay
+            Expanded(
+              child: Column(
+                children: [
+                  Row(
+                    mainAxisAlignment: MainAxisAlignment.center,
+                    children: const [
+                      Icon(Icons.work, color: Colors.green, size: 24),
+                      SizedBox(width: 6),
+                      Text(
+                        'Hôm nay đã bay',
+                        style: TextStyle(fontWeight: FontWeight.bold),
+                      ),
+                    ],
+                  ),
+                  const SizedBox(height: 4),
+                  Text(
+                    '$completedToday',
+                    style: const TextStyle(
+                        fontSize: 18, fontWeight: FontWeight.bold),
+                  ),
+                ],
+              ),
+            ),
+
+            const SizedBox(width: 16),
+
+            // ✅ Doanh thu hôm nay
+            Expanded(
+              child: Column(
+                children: [
+                  Row(
+                    mainAxisAlignment: MainAxisAlignment.center,
+                    children: const [
+                      Icon(Icons.attach_money, color: Colors.orange, size: 24),
+                      SizedBox(width: 6),
+                      Text(
+                        'Doanh thu',
+                        style: TextStyle(fontWeight: FontWeight.bold),
+                      ),
+                    ],
+                  ),
+                  const SizedBox(height: 4),
+                  Text(
+                    '${revenueToday}đ',
+                    style: const TextStyle(
+                        fontSize: 18, fontWeight: FontWeight.bold),
+                  ),
+                ],
+              ),
+            ),
+          ],
+        ),
+      ),
+    );
+  }
+
+
+  Widget _buildFilterDropdown() {
+    return Padding(
+      padding: const EdgeInsets.symmetric(horizontal: 16),
+      child: Row(
+        children: [
+          const Icon(Icons.filter_alt_outlined),
+          const SizedBox(width: 8),
+          const Text('Lọc theo trạng thái:'),
+          const SizedBox(width: 12),
+          DropdownButton<String>(
+            value: filterStatus,
+            items: const [
+              DropdownMenuItem(value: 'ALL', child: Text('Tất cả')),
+              DropdownMenuItem(value: 'PENDING', child: Text('Chờ xử lý')),
+              DropdownMenuItem(value: 'ACCEPTED', child: Text('Đã nhận')),
+              DropdownMenuItem(value: 'COMPLETED', child: Text('Hoàn thành')),
+              DropdownMenuItem(value: 'REJECTED', child: Text('Đã từ chối')),
+            ],
+            onChanged: (value) {
+              if (value != null) {
+                setState(() => filterStatus = value);
+              }
+            },
+          ),
+        ],
+      ),
+    );
+  }
+
+  @override
+  Widget build(BuildContext context) {
+    return Scaffold(
+      backgroundColor: Colors.green.shade50,
+      appBar: AppBar(
+        backgroundColor: Colors.green.shade700,
+        title: const Text('Tất cả yêu cầu'),
+        actions: [
+          IconButton(
+            icon: const Icon(Icons.refresh),
+            onPressed: () {
+              fetchRequests();
+              fetchSummary();
+            },
+          )
+        ],
+      ),
+      body: isLoading
+          ? const Center(child: CircularProgressIndicator())
+          : RefreshIndicator(
+              onRefresh: fetchRequests,
+              child: ListView(
+                children: [
+                  _buildSummaryCard(),
+                  _buildFilterDropdown(),
+                  ...filteredRequests.map(_buildRequestCard),
+                  const SizedBox(height: 12),
+                  if (ratedRequests.isNotEmpty)
+                    const Padding(
+                      padding:
+                          EdgeInsets.symmetric(horizontal: 16, vertical: 8),
+                      child: Text(
+                        '📝 Đánh giá từ nông dân',
+                        style: TextStyle(
+                            fontWeight: FontWeight.bold, fontSize: 16),
+                      ),
+                    ),
+                  ...ratedRequests.map(_buildRatingCard),
+                ],
+              ),
+            ),
+    );
+  }
 }

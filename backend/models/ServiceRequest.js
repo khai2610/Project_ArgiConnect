@@ -29,6 +29,10 @@ const ServiceRequestSchema = new mongoose.Schema({
     default: ''
   },
 
+  total_amount: { 
+    type: Number, 
+    default: 0 }, // 🆕 Thêm dòng này trong schema
+
   rating: {
     type: Number,
     min: 1,
@@ -45,5 +49,17 @@ const ServiceRequestSchema = new mongoose.Schema({
     attachments: [String]
   }
 }, { timestamps: true });
+
+// ✅ Virtual để liên kết với bảng Invoice
+ServiceRequestSchema.virtual('invoice', {
+  ref: 'Invoice',
+  localField: '_id',
+  foreignField: 'service_request_id',
+  justOne: true,
+});
+
+// ✅ Bật virtuals khi JSON hóa
+ServiceRequestSchema.set('toObject', { virtuals: true });
+ServiceRequestSchema.set('toJSON', { virtuals: true });
 
 module.exports = mongoose.model('ServiceRequest', ServiceRequestSchema);
