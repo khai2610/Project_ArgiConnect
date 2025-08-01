@@ -33,6 +33,10 @@ const InvoiceSchema = new mongoose.Schema({
     type: String,
     enum: ['UNPAID', 'PAID'],
     default: 'UNPAID'
+  },
+  paidAt: {
+    type: Date,
+    default: null
   }
 }, {
   timestamps: true // tạo createdAt, updatedAt tự động

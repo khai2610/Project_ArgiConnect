@@ -15,6 +15,8 @@ class FarmerInvoiceScreen extends StatefulWidget {
 class _FarmerInvoiceScreenState extends State<FarmerInvoiceScreen> {
   List<dynamic> invoices = [];
   bool isLoading = true;
+  String selectedStatus = 'Tất cả';
+  bool sortDescending = true;
 
   @override
   void initState() {
@@ -54,6 +56,10 @@ class _FarmerInvoiceScreenState extends State<FarmerInvoiceScreen> {
         : '---';
     final status = request?['status'] ?? '---';
     final isPaid = invoice['status'] == 'PAID';
+    final createdAt = DateTime.tryParse(invoice['createdAt'] ?? '');
+    final paidAt = invoice['paidAt'] != null
+        ? DateTime.tryParse(invoice['paidAt'])?.toLocal()
+        : null;
 
     return Container(
       margin: const EdgeInsets.symmetric(horizontal: 16, vertical: 8),
@@ -90,33 +96,48 @@ class _FarmerInvoiceScreenState extends State<FarmerInvoiceScreen> {
                 color: isPaid ? Colors.green : Colors.orange,
               ),
             ),
+            Text(
+                'Ngày lập hóa đơn: ${createdAt != null ? createdAt.toString().split(' ')[0] : '---'}'),
+            if (paidAt != null)
+              Text('Ngày thanh toán: ${paidAt.toString().split(' ')[0]}'),
             if (invoice['note'] != null &&
                 invoice['note'].toString().isNotEmpty)
               Text('Ghi chú: ${invoice['note']}'),
           ],
         ),
         onTap: () async {
-            final result = await Navigator.push(
-              context,
-              MaterialPageRoute(
-                builder: (_) => InvoiceDetailScreen(
-                  invoice: invoice,
-                  token: widget.token,
-                ),
+          final result = await Navigator.push(
+            context,
+            MaterialPageRoute(
+              builder: (_) => InvoiceDetailScreen(
+                invoice: invoice,
+                token: widget.token,
               ),
-            );
+            ),
+          );
 
-            if (result == true) {
-              fetchInvoices(); // ✅ làm mới danh sách hóa đơn
-            }
+          if (result == true) {
+            fetchInvoices();
           }
-
+        },
       ),
     );
   }
 
   @override
   Widget build(BuildContext context) {
+    final filteredInvoices = invoices.where((inv) {
+      if (selectedStatus == 'Đã thanh toán') return inv['status'] == 'PAID';
+      if (selectedStatus == 'Chưa thanh toán') return inv['status'] != 'PAID';
+      return true;
+    }).toList();
+
+    filteredInvoices.sort((a, b) {
+      final timeA = DateTime.tryParse(a['createdAt'] ?? '') ?? DateTime(2000);
+      final timeB = DateTime.tryParse(b['createdAt'] ?? '') ?? DateTime(2000);
+      return sortDescending ? timeB.compareTo(timeA) : timeA.compareTo(timeB);
+    });
+
     return Scaffold(
       backgroundColor: Colors.green.shade50,
       appBar: AppBar(
@@ -125,17 +146,59 @@ class _FarmerInvoiceScreenState extends State<FarmerInvoiceScreen> {
       ),
       body: isLoading
           ? const Center(child: CircularProgressIndicator())
-          : invoices.isEmpty
-              ? const Center(child: Text('Không có hóa đơn nào'))
-              : RefreshIndicator(
-                  onRefresh: fetchInvoices,
-                  child: ListView.builder(
-                    itemCount: invoices.length,
-                    itemBuilder: (context, index) {
-                      return _buildInvoiceCard(invoices[index]);
-                    },
+          : Column(
+              children: [
+                Padding(
+                  padding: const EdgeInsets.all(12),
+                  child: Row(
+                    children: [
+                      Expanded(
+                        child: DropdownButton<String>(
+                          value: selectedStatus,
+                          isExpanded: true,
+                          items: ['Tất cả', 'Đã thanh toán', 'Chưa thanh toán']
+                              .map((status) => DropdownMenuItem(
+                                    value: status,
+                                    child: Text(status),
+                                  ))
+                              .toList(),
+                          onChanged: (value) {
+                            if (value != null) {
+                              setState(() => selectedStatus = value);
+                            }
+                          },
+                        ),
+                      ),
+                      const SizedBox(width: 12),
+                      IconButton(
+                        icon: Icon(
+                          sortDescending
+                              ? Icons.arrow_downward
+                              : Icons.arrow_upward,
+                        ),
+                        onPressed: () {
+                          setState(() => sortDescending = !sortDescending);
+                        },
+                        tooltip: 'Sắp xếp theo thời gian',
+                      ),
+                    ],
                   ),
                 ),
+                Expanded(
+                  child: RefreshIndicator(
+                    onRefresh: fetchInvoices,
+                    child: filteredInvoices.isEmpty
+                        ? const Center(child: Text('Không có hóa đơn nào'))
+                        : ListView.builder(
+                            itemCount: filteredInvoices.length,
+                            itemBuilder: (context, index) {
+                              return _buildInvoiceCard(filteredInvoices[index]);
+                            },
+                          ),
+                  ),
+                ),
+              ],
+            ),
     );
   }
 }

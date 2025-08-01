@@ -39,4 +39,7 @@ app.use('/api/chat', require('./routes/chat.route'));
 
 app.use('/uploads', express.static(path.join(__dirname, 'uploads')));
 
+app.use('/api/payment', require('./routes/payment.route'));
+
+
 module.exports = app;
