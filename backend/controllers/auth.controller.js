@@ -9,6 +9,8 @@ const { generateToken } = require('../middlewares/shared/generateToken');
 exports.register = async (req, res) => {
   try {
     const { role, email, password } = req.body;
+console.log('req.body:', req.body);
+console.log('req.file:', req.file);
 
     if (!['farmer', 'provider'].includes(role)) {
       return res.status(400).json({ message: 'Role không hợp lệ (chỉ cho farmer/provider)' });
@@ -19,8 +21,13 @@ exports.register = async (req, res) => {
 
     const hashed = await hashPassword(password);
 
+    // 👇 xử lý avatar từ file nếu có
+    const avatar = req.file ? `/uploads/avatars/${req.file.filename}` : '';
+
     if (role === 'farmer') {
       const { name, phone, location } = req.body;
+console.log('req.body:', req.body);
+console.log('req.file:', req.file);
 
       const farmer = new Farmer({
         name,
@@ -28,6 +35,7 @@ exports.register = async (req, res) => {
         phone,
         password: hashed,
         location,
+        avatar,
         role: 'farmer'
       });
 
@@ -44,6 +52,7 @@ exports.register = async (req, res) => {
         phone,
         password: hashed,
         address,
+        avatar,
         services: [],
         role: 'provider'
       });
@@ -56,6 +65,7 @@ exports.register = async (req, res) => {
     return res.status(500).json({ message: 'Lỗi server', error: err.message });
   }
 };
+
 
 // ✅ Đăng nhập cho tất cả các loại tài khoản
 exports.login = async (req, res) => {

@@ -12,7 +12,7 @@ exports.getAllRequests = async (req, res) => {
         { provider_id: null }        // yêu cầu tự do
       ]
     })
-      .populate('farmer_id', 'name email phone')
+      .populate('farmer_id', 'name email phone avatar') // ✅ THÊM avatar
       .populate('invoice') // ✅ Lấy thêm hóa đơn liên kết
       .sort({ createdAt: -1 });
 

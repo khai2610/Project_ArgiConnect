@@ -21,7 +21,6 @@ class _RequestDetailScreenState extends State<RequestDetailScreen> {
   Map<String, dynamic>? request;
   bool isLoading = true;
   bool isCreatingInvoice = false;
-  bool _invoiceCreated = false;
 
   final TextEditingController _descriptionController = TextEditingController();
   final TextEditingController _attachmentController = TextEditingController();
@@ -35,6 +34,39 @@ class _RequestDetailScreenState extends State<RequestDetailScreen> {
     fetchRequestDetail();
   }
 
+  // ---------------- Helpers: avatar + URL ----------------
+  String _serverOrigin() => baseUrl.replaceFirst(RegExp(r'/api/?$'), '');
+
+  String _resolveAvatarUrl(String? raw) {
+    if (raw == null) return '';
+    var v = raw.trim();
+    if (v.isEmpty) return '';
+    if (v.startsWith('http')) return v;
+    v = v.replaceAll('\\', '/');
+    final path = v.startsWith('/') ? v : '/$v';
+    return '${_serverOrigin()}$path';
+  }
+
+  String _initials(String? name) {
+    if (name == null || name.trim().isEmpty) return '?';
+    final parts = name.trim().split(RegExp(r'\s+'));
+    if (parts.length == 1) return parts.first.characters.first.toUpperCase();
+    return (parts.first.characters.first + parts.last.characters.first)
+        .toUpperCase();
+  }
+
+  Widget _fallbackInitials(String? name) {
+    return Container(
+      color: Colors.green.shade100,
+      alignment: Alignment.center,
+      child: Text(
+        _initials(name),
+        style: const TextStyle(fontWeight: FontWeight.bold, fontSize: 18),
+      ),
+    );
+  }
+
+  // ---------------- Data fetch ----------------
   Future<void> fetchRequestDetail() async {
     setState(() => isLoading = true);
     final res = await http.get(
@@ -47,16 +79,15 @@ class _RequestDetailScreenState extends State<RequestDetailScreen> {
       final found = all.firstWhere((r) => r['_id'] == widget.requestId,
           orElse: () => null);
 
-      if (found != null) {
-        if (found['status'] == 'COMPLETED') {
-          final paymentStatus = found['payment_status'];
-          _invoiceCreated =
-              paymentStatus == 'PAID' || paymentStatus == 'UNPAID';
-
+      // Gợi ý tổng tiền khi đã có price*area (sau COMPLETE)
+      if (found != null && found['status'] == 'COMPLETED') {
+        final paymentStatus = found['payment_status'];
+        if (paymentStatus != null && paymentStatus != '') {
+          // hóa đơn đã/đang tồn tại, không cần set tạm
+        } else {
           final provider = found['provider_id'];
           final area = (found['area_ha'] ?? 0.0).toDouble();
           final service = found['service_type'];
-
           try {
             if (provider != null && provider['services'] is List) {
               final services = provider['services'] as List;
@@ -66,12 +97,12 @@ class _RequestDetailScreenState extends State<RequestDetailScreen> {
               );
               if (matched != null && matched['price'] != null) {
                 final price = (matched['price'] as num).toDouble();
-                final total = (price * area).toStringAsFixed(0);
-                _invoiceAmountController.text = total;
+                _invoiceAmountController.text =
+                    (price * area).toStringAsFixed(0);
               }
             }
           } catch (e) {
-            debugPrint('❌ Lỗi khi xử lý services: $e');
+            debugPrint('Price hint error: $e');
           }
         }
       }
@@ -88,6 +119,7 @@ class _RequestDetailScreenState extends State<RequestDetailScreen> {
     }
   }
 
+  // ---------------- Actions ----------------
   Future<void> _createInvoice() async {
     setState(() => isCreatingInvoice = true);
     final res = await http.post(
@@ -109,8 +141,6 @@ class _RequestDetailScreenState extends State<RequestDetailScreen> {
       final amount = invoice['total_amount'];
       _invoiceAmountController.text = amount.toString();
 
-      setState(() => _invoiceCreated = true);
-
       ScaffoldMessenger.of(context).showSnackBar(
         SnackBar(content: Text('Lập hóa đơn thành công (${amount} VND)')),
       );
@@ -123,6 +153,7 @@ class _RequestDetailScreenState extends State<RequestDetailScreen> {
     }
   }
 
+  // ---------------- UI pieces ----------------
   Widget _buildInfoRow(String label, String? value) {
     return Padding(
       padding: const EdgeInsets.symmetric(vertical: 4),
@@ -130,9 +161,8 @@ class _RequestDetailScreenState extends State<RequestDetailScreen> {
     );
   }
 
-  Widget _buildColoredStatus(String label, String? value,
-      [Color? colorOverride]) {
-    final color = colorOverride ??
+  Widget _buildColoredStatus(String label, String? value, [Color? override]) {
+    final color = override ??
         (value == 'PAID'
             ? Colors.green
             : value == 'UNPAID'
@@ -164,21 +194,12 @@ class _RequestDetailScreenState extends State<RequestDetailScreen> {
     );
   }
 
-  Widget _buildSectionTitle(String title) {
-    return Padding(
-      padding: const EdgeInsets.symmetric(vertical: 8),
-      child: Text(
-        title,
-        style: const TextStyle(fontWeight: FontWeight.bold, fontSize: 16),
-      ),
-    );
-  }
-
   Widget _buildActionButton({
     required IconData icon,
     required String label,
     required VoidCallback? onPressed,
     bool showLoading = false,
+    Color? color,
   }) {
     return SizedBox(
       width: double.infinity,
@@ -187,13 +208,12 @@ class _RequestDetailScreenState extends State<RequestDetailScreen> {
             ? const SizedBox(
                 width: 16,
                 height: 16,
-                child: CircularProgressIndicator(strokeWidth: 2),
-              )
+                child: CircularProgressIndicator(strokeWidth: 2))
             : Icon(icon),
         label: Text(label),
         onPressed: onPressed,
         style: ElevatedButton.styleFrom(
-          backgroundColor: Colors.green.shade700,
+          backgroundColor: color ?? Colors.green.shade700,
           padding: const EdgeInsets.symmetric(vertical: 14),
           shape:
               RoundedRectangleBorder(borderRadius: BorderRadius.circular(12)),
@@ -202,7 +222,7 @@ class _RequestDetailScreenState extends State<RequestDetailScreen> {
     );
   }
 
-  Widget _buildCardSection(List<Widget> children) {
+  Widget _card(Widget child) {
     return Container(
       width: double.infinity,
       padding: const EdgeInsets.all(16),
@@ -213,9 +233,61 @@ class _RequestDetailScreenState extends State<RequestDetailScreen> {
           BoxShadow(color: Colors.black12, blurRadius: 8, offset: Offset(0, 4)),
         ],
       ),
-      child: Column(
+      child: child,
+    );
+  }
+
+  // Header card có avatar nông dân bên phải, chống overflow
+  Widget _headerCard(Map<String, dynamic> req) {
+    final farmer = req['farmer_id'] as Map<String, dynamic>?;
+    final avatarUrl = _resolveAvatarUrl(farmer?['avatar']?.toString());
+
+    return _card(
+      Row(
         crossAxisAlignment: CrossAxisAlignment.start,
-        children: children,
+        children: [
+          // Text info - Expanded để không tràn Row
+          Expanded(
+            child: Column(
+              crossAxisAlignment: CrossAxisAlignment.start,
+              children: [
+                _buildInfoRow('Dịch vụ', req['service_type']),
+                _buildInfoRow('Cây trồng', req['crop_type']),
+                _buildInfoRow('Diện tích', '${req['area_ha']} ha'),
+                _buildInfoRow('Ngày mong muốn',
+                    req['preferred_date']?.split('T')[0] ?? '---'),
+                _buildColoredStatus('Trạng thái', req['status']),
+                _buildColoredStatus('Thanh toán', req['payment_status']),
+                const SizedBox(height: 8),
+                if (farmer != null) ...[
+                  Text('Nông dân: ${farmer['name'] ?? '-'}',
+                      style: const TextStyle(fontWeight: FontWeight.w600)),
+                  if ((farmer['phone'] ?? '').toString().isNotEmpty)
+                    Text('SĐT: ${farmer['phone']}'),
+                  if ((farmer['email'] ?? '').toString().isNotEmpty)
+                    Text('Email: ${farmer['email']}'),
+                ],
+              ],
+            ),
+          ),
+          const SizedBox(width: 12),
+          // Avatar fixed size + cover
+          SizedBox(
+            width: 88,
+            height: 88,
+            child: ClipRRect(
+              borderRadius: BorderRadius.circular(44),
+              child: (avatarUrl.isNotEmpty)
+                  ? Image.network(
+                      avatarUrl,
+                      fit: BoxFit.cover,
+                      errorBuilder: (_, __, ___) =>
+                          _fallbackInitials(farmer?['name']),
+                    )
+                  : _fallbackInitials(farmer?['name']),
+            ),
+          ),
+        ],
       ),
     );
   }
@@ -248,21 +320,10 @@ class _RequestDetailScreenState extends State<RequestDetailScreen> {
                     child: Column(
                       crossAxisAlignment: CrossAxisAlignment.start,
                       children: [
-                        _buildCardSection([
-                          _buildInfoRow('Dịch vụ', request!['service_type']),
-                          _buildInfoRow('Cây trồng', request!['crop_type']),
-                          _buildInfoRow(
-                              'Diện tích', '${request!['area_ha']} ha'),
-                          _buildInfoRow(
-                              'Ngày mong muốn',
-                              request!['preferred_date']?.split('T')[0] ??
-                                  '---'),
-                          _buildColoredStatus('Trạng thái', status),
-                          _buildColoredStatus('Thanh toán', paymentStatus),
-                        ]),
+                        _headerCard(request!),
                         const SizedBox(height: 16),
 
-                        // ✅ Nếu trạng thái là PENDING
+                        // PENDING: accept / reject
                         if (status == 'PENDING') ...[
                           _buildActionButton(
                             icon: Icons.check,
@@ -294,6 +355,7 @@ class _RequestDetailScreenState extends State<RequestDetailScreen> {
                           _buildActionButton(
                             icon: Icons.close,
                             label: 'Từ chối yêu cầu',
+                            color: Colors.red.shade600,
                             onPressed: () async {
                               final res = await http.patch(
                                 Uri.parse(
@@ -319,140 +381,186 @@ class _RequestDetailScreenState extends State<RequestDetailScreen> {
                           ),
                         ],
 
+                        // ACCEPTED: complete form
                         if (status == 'ACCEPTED') ...[
-                          _buildSectionTitle('Hoàn thành yêu cầu'),
-                          _buildTextField(
-                            controller: _descriptionController,
-                            label: 'Mô tả kết quả',
-                            maxLines: 3,
-                          ),
-                          const SizedBox(height: 12),
-                          _buildTextField(
-                            controller: _attachmentController,
-                            label: 'Link đính kèm (nếu có)',
-                          ),
-                          const SizedBox(height: 12),
-                          _buildActionButton(
-                            icon: Icons.check_circle_outline,
-                            label: 'Xác nhận hoàn thành',
-                            onPressed: () async {
-                              final description =
-                                  _descriptionController.text.trim();
-                              final attachment =
-                                  _attachmentController.text.trim();
-
-                              try {
-                                final res = await http.patch(
-                                  Uri.parse(
-                                      '$baseUrl/provider/requests/${widget.requestId}/complete'),
-                                  headers: {
-                                    'Authorization': 'Bearer ${widget.token}',
-                                    'Content-Type': 'application/json',
-                                  },
-                                  body: jsonEncode({
-                                    'description': description,
-                                    'attachments': attachment.isNotEmpty
-                                        ? [attachment]
-                                        : [],
-                                  }),
-                                );
-
-                                final code = res.statusCode;
-                                final body = res.body;
-
-                                if (code == 200) {
-                                  final data = jsonDecode(body);
-                                  final updated = data['request'];
-                                  if (updated != null &&
-                                      updated['total_amount'] != null) {
-                                    _invoiceAmountController.text =
-                                        updated['total_amount']
-                                            .toString(); // ✅ gán vào controller
-                                  }
-
-                                  ScaffoldMessenger.of(context).showSnackBar(
-                                    const SnackBar(
-                                        content:
-                                            Text('✅ Yêu cầu đã hoàn thành')),
-                                  );
-
-                                  await fetchRequestDetail(); // cập nhật lại giao diện
-                                } else {
-                                  debugPrint(
-                                      '❌ Complete failed [$code]: $body');
-                                  ScaffoldMessenger.of(context).showSnackBar(
-                                    SnackBar(
-                                        content: Text(
-                                            'Lỗi $code: ${jsonDecode(body)['message'] ?? 'Không thể hoàn thành yêu cầu'}')),
-                                  );
-                                }
-                              } catch (e) {
-                                debugPrint('❌ Exception during complete: $e');
-                                ScaffoldMessenger.of(context).showSnackBar(
-                                  const SnackBar(
-                                      content: Text(
-                                          'Đã xảy ra lỗi không mong muốn')),
-                                );
-                              }
-                            },
-                          ),
-                        ],
-
-
-                        if (status == 'COMPLETED') ...[
-                          _buildSectionTitle('Kết quả xử lý'),
-                          Text(request!['result']?['description'] ??
-                              'Không có mô tả'),
-                          const SizedBox(height: 8),
-                          if ((request!['result']?['attachments'] as List?)
-                                  ?.isNotEmpty ??
-                              false)
+                          _card(
                             Column(
                               crossAxisAlignment: CrossAxisAlignment.start,
                               children: [
-                                const Text('Tệp đính kèm:'),
-                                ...(request!['result']['attachments'] as List)
-                                    .map((url) => Text('• $url')),
+                                const Text('Hoàn thành yêu cầu',
+                                    style: TextStyle(
+                                        fontWeight: FontWeight.bold,
+                                        fontSize: 16)),
+                                const SizedBox(height: 12),
+                                _buildTextField(
+                                  controller: _descriptionController,
+                                  label: 'Mô tả kết quả',
+                                  maxLines: 3,
+                                ),
+                                const SizedBox(height: 12),
+                                _buildTextField(
+                                  controller: _attachmentController,
+                                  label: 'Link đính kèm (nếu có)',
+                                ),
+                                const SizedBox(height: 12),
+                                _buildActionButton(
+                                  icon: Icons.check_circle_outline,
+                                  label: 'Xác nhận hoàn thành',
+                                  onPressed: () async {
+                                    final description =
+                                        _descriptionController.text.trim();
+                                    final attachment =
+                                        _attachmentController.text.trim();
+
+                                    try {
+                                      final res = await http.patch(
+                                        Uri.parse(
+                                            '$baseUrl/provider/requests/${widget.requestId}/complete'),
+                                        headers: {
+                                          'Authorization':
+                                              'Bearer ${widget.token}',
+                                          'Content-Type': 'application/json',
+                                        },
+                                        body: jsonEncode({
+                                          'description': description,
+                                          'attachments': attachment.isNotEmpty
+                                              ? [attachment]
+                                              : [],
+                                        }),
+                                      );
+
+                                      if (res.statusCode == 200) {
+                                        final data = jsonDecode(res.body);
+                                        final updated = data['request'];
+                                        if (updated != null &&
+                                            updated['total_amount'] != null) {
+                                          _invoiceAmountController.text =
+                                              updated['total_amount']
+                                                  .toString();
+                                        }
+
+                                        ScaffoldMessenger.of(context)
+                                            .showSnackBar(
+                                          const SnackBar(
+                                              content: Text(
+                                                  '✅ Yêu cầu đã hoàn thành')),
+                                        );
+                                        await fetchRequestDetail();
+                                      } else {
+                                        final body = res.body;
+                                        ScaffoldMessenger.of(context)
+                                            .showSnackBar(
+                                          SnackBar(
+                                            content: Text(
+                                              'Lỗi ${res.statusCode}: ${jsonDecode(body)['message'] ?? 'Không thể hoàn thành yêu cầu'}',
+                                            ),
+                                          ),
+                                        );
+                                      }
+                                    } catch (e) {
+                                      debugPrint('complete error: $e');
+                                      ScaffoldMessenger.of(context)
+                                          .showSnackBar(
+                                        const SnackBar(
+                                            content: Text(
+                                                'Đã xảy ra lỗi không mong muốn')),
+                                      );
+                                    }
+                                  },
+                                ),
                               ],
                             ),
+                          ),
+                        ],
+
+                        // COMPLETED: result + invoice
+                        if (status == 'COMPLETED') ...[
+                          _card(
+                            Column(
+                              crossAxisAlignment: CrossAxisAlignment.start,
+                              children: [
+                                const Text('Kết quả xử lý',
+                                    style: TextStyle(
+                                        fontWeight: FontWeight.bold,
+                                        fontSize: 16)),
+                                const SizedBox(height: 8),
+                                Text(request!['result']?['description'] ??
+                                    'Không có mô tả'),
+                                const SizedBox(height: 8),
+                                if ((request!['result']?['attachments']
+                                            as List?)
+                                        ?.isNotEmpty ??
+                                    false)
+                                  Column(
+                                    crossAxisAlignment:
+                                        CrossAxisAlignment.start,
+                                    children: [
+                                      const Text('Tệp đính kèm:'),
+                                      ...(request!['result']['attachments']
+                                              as List)
+                                          .map((url) => Text('• $url')),
+                                    ],
+                                  ),
+                              ],
+                            ),
+                          ),
                           const SizedBox(height: 16),
                           if (paymentStatus == 'PAID' ||
-                              paymentStatus == 'UNPAID') ...[
-                            _buildSectionTitle('Hóa đơn'),
-                            Text(
-                              'Tổng tiền: $invoiceAmount VND',
-                              style: const TextStyle(
-                                  fontSize: 16, fontWeight: FontWeight.bold),
+                              paymentStatus == 'UNPAID')
+                            _card(
+                              Column(
+                                crossAxisAlignment: CrossAxisAlignment.start,
+                                children: [
+                                  const Text('Hóa đơn',
+                                      style: TextStyle(
+                                          fontWeight: FontWeight.bold,
+                                          fontSize: 16)),
+                                  const SizedBox(height: 8),
+                                  Text('Tổng tiền: $invoiceAmount VND',
+                                      style: const TextStyle(
+                                          fontSize: 16,
+                                          fontWeight: FontWeight.bold)),
+                                  const SizedBox(height: 8),
+                                  _buildColoredStatus(
+                                    'Trạng thái hóa đơn',
+                                    paymentStatus,
+                                    paymentStatus == 'PAID'
+                                        ? Colors.green
+                                        : Colors.orange,
+                                  ),
+                                ],
+                              ),
+                            )
+                          else
+                            _card(
+                              Column(
+                                crossAxisAlignment: CrossAxisAlignment.start,
+                                children: [
+                                  const Text('Lập hóa đơn',
+                                      style: TextStyle(
+                                          fontWeight: FontWeight.bold,
+                                          fontSize: 16)),
+                                  const SizedBox(height: 8),
+                                  Text('Tổng tiền tạm tính: $invoiceAmount VND',
+                                      style: const TextStyle(fontSize: 16)),
+                                  const SizedBox(height: 12),
+                                  _buildTextField(
+                                    controller: _invoiceNoteController,
+                                    label: 'Ghi chú (nếu có)',
+                                  ),
+                                  const SizedBox(height: 12),
+                                  _buildActionButton(
+                                    icon: Icons.receipt,
+                                    label: 'Lập hóa đơn',
+                                    onPressed: isCreatingInvoice
+                                        ? null
+                                        : _createInvoice,
+                                    showLoading: isCreatingInvoice,
+                                  ),
+                                ],
+                              ),
                             ),
-                            const SizedBox(height: 8),
-                            _buildColoredStatus(
-                              'Trạng thái hóa đơn',
-                              paymentStatus,
-                              paymentStatus == 'PAID'
-                                  ? Colors.green
-                                  : Colors.orange,
-                            ),
-                          ] else ...[
-                            _buildSectionTitle('Lập hóa đơn'),
-                            Text(
-                              'Tổng tiền tạm tính: $invoiceAmount VND',
-                              style: const TextStyle(fontSize: 16),
-                            ),
-                            const SizedBox(height: 12),
-                            _buildTextField(
-                              controller: _invoiceNoteController,
-                              label: 'Ghi chú (nếu có)',
-                            ),
-                            const SizedBox(height: 12),
-                            _buildActionButton(
-                              icon: Icons.receipt,
-                              label: 'Lập hóa đơn',
-                              onPressed:
-                                  isCreatingInvoice ? null : _createInvoice,
-                              showLoading: isCreatingInvoice,
-                            ),
-                          ]
-                        ]
+                        ],
                       ],
                     ),
                   ),

@@ -6,6 +6,7 @@ const FarmerSchema = new mongoose.Schema({
   email: { type: String, unique: true },
   phone: String,
   password: String,
+  avatar: { type: String, default: '' },
   location: {
     province: String,
     coordinates: {

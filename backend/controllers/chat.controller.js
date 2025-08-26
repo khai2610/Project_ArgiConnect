@@ -67,21 +67,22 @@ exports.getMessagesBetweenUsers = async (req, res) => {
 exports.sendMessageBetweenUsers = async (req, res) => {
   try {
     const { farmerId, providerId } = req.params;
-    const { content, action } = req.body;
+    const { content, action, request_id } = req.body;
 
-    const senderId = req.user.id;
-    const senderRole = req.role;
+    const senderId   = req.user.id;
+    const senderRole = req.user.role; // ✅ FIX: trước đây dùng req.role là sai
 
     const receiverRole = senderRole === 'farmer' ? 'provider' : 'farmer';
-    const receiverId = senderRole === 'farmer' ? providerId : farmerId;
+    const receiverId   = senderRole === 'farmer' ? providerId : farmerId;
 
     const message = new Message({
       sender_id: senderId,
       sender_role: senderRole,
       receiver_id: receiverId,
       receiver_role: receiverRole,
+      request_id: request_id ?? null,       // ✅ lưu request liên quan (nếu có)
       content,
-      action: action || null
+      action: action ?? null                // ✅ LUÔN gửi object ở đây
     });
 
     await message.save();

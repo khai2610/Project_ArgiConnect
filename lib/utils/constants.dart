@@ -6,13 +6,13 @@ const String createRequestEndpoint = '$baseUrl/farmer/requests';
 const String farmerProfileEndpoint = '$baseUrl/farmer/profile';
 const String approvedProvidersUrl = '$baseUrl/farmer/list-services';
 const String farmerInvoiceEndpoint = '$baseUrl/farmer/invoices';
-
+String getFarmerInvoiceDetailUrl(String id) => '$baseUrl/farmer/invoices/$id';
+String getFarmerInvoicePayUrl(String id) => '$baseUrl/farmer/invoices/$id/pay';
 
 String getPublicProviderInfoUrl(String id) => '$baseUrl/public/provider/$id';
 String getPublicProviderServicesUrl(String id) =>'$baseUrl/public/provider/$id/services';
 
 const String publicProvidersUrl = '$baseUrl/public/providers';
-
 
 const String providerProfileEndpoint = '$baseUrl/provider/profile';
 const String providerRequestEndpoint = '$baseUrl/provider/requests';
@@ -20,7 +20,6 @@ const String providerServiceEndpoint = '$baseUrl/provider/services';
 const String providerInvoiceEndpoint = '$baseUrl/provider/invoices';
 const String providerSummaryEndpoint = '$baseUrl/provider/requests/summary';
 
-// CHAT
 const String chatBaseUrl = '$baseUrl/chat';
 
 String getChatMessagesUrl(String requestId) => '$chatBaseUrl/$requestId';

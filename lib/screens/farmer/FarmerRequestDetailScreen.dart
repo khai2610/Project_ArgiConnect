@@ -21,10 +21,12 @@ class FarmerRequestDetailScreen extends StatefulWidget {
 
 class _FarmerRequestDetailScreenState extends State<FarmerRequestDetailScreen> {
   Map<String, dynamic>? request;
+  Map<String, dynamic>? _providerFull; // 👈 lưu provider đầy đủ (có avatar)
   bool isLoading = true;
   bool isPaying = false;
   bool isResending = false;
   bool isRating = false;
+
   final TextEditingController _ratingController = TextEditingController();
   final TextEditingController _commentController = TextEditingController();
 
@@ -34,30 +36,90 @@ class _FarmerRequestDetailScreenState extends State<FarmerRequestDetailScreen> {
     fetchRequest();
   }
 
+  // ========= Helpers (avatar) =========
+  String _serverOrigin() => baseUrl.replaceFirst(RegExp(r'/api/?$'), '');
+
+  String? _resolveAvatarUrl(String? raw) {
+    if (raw == null) return null;
+    var v = raw.trim();
+    if (v.isEmpty) return null;
+    if (v.startsWith('http')) return v;
+    v = v.replaceAll('\\', '/');
+    final path = v.startsWith('/') ? v : '/$v';
+    return '${_serverOrigin()}$path';
+  }
+
+  String _initials(String? name) {
+    if (name == null || name.trim().isEmpty) return '?';
+    final parts = name.trim().split(RegExp(r'\s+'));
+    if (parts.length == 1) return parts.first.characters.first.toUpperCase();
+    return (parts.first.characters.first + parts.last.characters.first)
+        .toUpperCase();
+  }
+
+  // ========= API =========
   Future<void> fetchRequest() async {
-    setState(() => isLoading = true);
+    setState(() {
+      isLoading = true;
+      _providerFull = null; // reset
+    });
 
-    final res = await http.get(
-      Uri.parse('$baseUrl/farmer/requests'),
-      headers: {'Authorization': 'Bearer ${widget.token}'},
-    );
-
-    if (res.statusCode == 200) {
-      final all = json.decode(res.body) as List;
-      final found = all.firstWhere(
-        (r) => r['_id'] == widget.requestId,
-        orElse: () => null,
+    try {
+      final res = await http.get(
+        Uri.parse('$baseUrl/farmer/requests'),
+        headers: {'Authorization': 'Bearer ${widget.token}'},
       );
-      setState(() {
-        request = found;
-        _ratingController.text = request?['rating']?.toString() ?? '';
-        _commentController.text = request?['comment'] ?? '';
-        isLoading = false;
-      });
-    } else {
+
+      if (res.statusCode == 200) {
+        final all = json.decode(res.body) as List;
+        final found = all.firstWhere(
+          (r) => r['_id'] == widget.requestId,
+          orElse: () => null,
+        );
+
+        // Thử lấy info provider đầy đủ nếu thiếu avatar trong payload list requests
+        if (found != null) {
+          final prov = found['provider_id'];
+          final provId =
+              prov is Map ? prov['_id'] : (prov is String ? prov : null);
+
+          if (provId != null) {
+            // Nếu list đã có avatar thì dùng luôn, không cần fetch
+            if (prov is Map &&
+                (prov['avatar'] ?? '').toString().trim().isNotEmpty) {
+              _providerFull = Map<String, dynamic>.from(prov);
+            } else {
+              // Gọi public API lấy chi tiết provider
+              try {
+                final pres =
+                    await http.get(Uri.parse(getPublicProviderInfoUrl(provId)));
+                if (pres.statusCode == 200) {
+                  _providerFull = json.decode(pres.body)
+                      as Map<String, dynamic>; // có avatar/đủ field
+                }
+              } catch (_) {
+                // bỏ qua lỗi phụ
+              }
+            }
+          }
+        }
+
+        setState(() {
+          request = found;
+          _ratingController.text = request?['rating']?.toString() ?? '';
+          _commentController.text = request?['comment'] ?? '';
+          isLoading = false;
+        });
+      } else {
+        setState(() => isLoading = false);
+        ScaffoldMessenger.of(context).showSnackBar(
+          const SnackBar(content: Text('Không thể tải chi tiết yêu cầu')),
+        );
+      }
+    } catch (e) {
       setState(() => isLoading = false);
       ScaffoldMessenger.of(context).showSnackBar(
-        const SnackBar(content: Text('Không thể tải chi tiết yêu cầu')),
+        SnackBar(content: Text('Lỗi mạng: $e')),
       );
     }
   }
@@ -137,6 +199,7 @@ class _FarmerRequestDetailScreenState extends State<FarmerRequestDetailScreen> {
     }
   }
 
+  // ========= UI =========
   @override
   Widget build(BuildContext context) {
     final status = request?['status'];
@@ -158,22 +221,11 @@ class _FarmerRequestDetailScreenState extends State<FarmerRequestDetailScreen> {
                   child: Column(
                     crossAxisAlignment: CrossAxisAlignment.start,
                     children: [
-                      _buildInfoRow('Dịch vụ', request!['service_type']),
-                      _buildInfoRow('Cây trồng', request!['crop_type']),
-                      _buildInfoRow('Diện tích', '${request!['area_ha']} ha'),
-                      _buildInfoRow(
-                        'Ngày yêu cầu',
-                        request!['preferred_date']?.split('T')[0] ?? '---',
-                      ),
+                      // —— Header tóm tắt + avatar bên phải ——
+                      _summaryWithAvatar(),
                       const SizedBox(height: 12),
-                      _buildInfoRow('Trạng thái', status),
-                      _buildInfoRow('Thanh toán', paymentStatus),
-                      const SizedBox(height: 12),
-                      _buildInfoRow(
-                        'Nhà cung cấp',
-                        request!['provider_id']?['company_name'] ?? 'Chưa có',
-                      ),
                       const Divider(height: 32),
+
                       if (status == 'REJECTED')
                         _buildActionButton(
                           icon: Icons.refresh,
@@ -215,11 +267,12 @@ class _FarmerRequestDetailScreenState extends State<FarmerRequestDetailScreen> {
                       if (status == 'COMPLETED' && paymentStatus == 'UNPAID')
                         _buildActionButton(
                           icon: Icons.payment,
-                          label: 'Thanh toán',
+                          label: 'Xác nhận hoàn thành',
                           onPressed: isPaying ? null : _pay,
                           showLoading: isPaying,
                           color: Colors.green.shade700,
                         ),
+
                       if (status == 'COMPLETED' && paymentStatus == 'PAID') ...[
                         const Text('Đánh giá dịch vụ',
                             style: TextStyle(
@@ -255,6 +308,72 @@ class _FarmerRequestDetailScreenState extends State<FarmerRequestDetailScreen> {
     );
   }
 
+  // —— Header với info bên trái + avatar bên phải ——
+  Widget _summaryWithAvatar() {
+    final providerLite = request?['provider_id'];
+
+    // name “lite” từ payload list requests
+    final nameLite =
+        (providerLite is Map ? providerLite['company_name'] : null) ??
+            'Chưa có';
+
+    // Ưu tiên dùng providerFull (có avatar); fallback providerLite
+    final useProv = _providerFull ??
+        (providerLite is Map ? Map<String, dynamic>.from(providerLite) : null);
+
+    final providerName = (useProv?['company_name'] ?? nameLite).toString();
+    final avatarUrl = _resolveAvatarUrl(useProv?['avatar']?.toString());
+
+    return Container(
+      padding: const EdgeInsets.all(12),
+      decoration: BoxDecoration(
+        color: Colors.white,
+        borderRadius: BorderRadius.circular(12),
+        boxShadow: const [
+          BoxShadow(color: Colors.black12, blurRadius: 6, offset: Offset(0, 3))
+        ],
+      ),
+      child: Row(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
+          // Cột thông tin bên trái
+          Expanded(
+            child: Column(
+              crossAxisAlignment: CrossAxisAlignment.start,
+              children: [
+                _buildInfoRow('Dịch vụ', request!['service_type']),
+                _buildInfoRow('Cây trồng', request!['crop_type']),
+                _buildInfoRow('Diện tích', '${request!['area_ha']} ha'),
+                _buildInfoRow('Ngày yêu cầu',
+                    request!['preferred_date']?.split('T')[0] ?? '---'),
+                const SizedBox(height: 8),
+                _buildInfoRow('Trạng thái', request!['status']),
+                _buildInfoRow('Thanh toán', request!['payment_status']),
+                const SizedBox(height: 8),
+                Text('Nhà cung cấp: $providerName'),
+              ],
+            ),
+          ),
+          const SizedBox(width: 12),
+          // Avatar bên phải (vùng bạn khoanh)
+          CircleAvatar(
+            radius: 72,
+            backgroundColor: Colors.green.shade100,
+            backgroundImage: avatarUrl != null ? NetworkImage(avatarUrl) : null,
+            child: avatarUrl == null
+                ? Text(
+                    _initials(providerName),
+                    style: const TextStyle(
+                        fontWeight: FontWeight.bold, fontSize: 18),
+                  )
+                : null,
+          ),
+        ],
+      ),
+    );
+  }
+
+  // —— Widgets phụ ——
   Widget _buildInfoRow(String label, String? value) {
     return Padding(
       padding: const EdgeInsets.symmetric(vertical: 4),
@@ -293,7 +412,8 @@ class _FarmerRequestDetailScreenState extends State<FarmerRequestDetailScreen> {
             ? const SizedBox(
                 width: 16,
                 height: 16,
-                child: CircularProgressIndicator(strokeWidth: 2))
+                child: CircularProgressIndicator(strokeWidth: 2),
+              )
             : Icon(icon),
         label: Text(label),
         onPressed: onPressed,

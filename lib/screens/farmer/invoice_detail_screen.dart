@@ -3,6 +3,7 @@ import 'package:flutter/material.dart';
 import 'package:http/http.dart' as http;
 import 'package:url_launcher/url_launcher.dart';
 import '../../utils/constants.dart';
+import 'payment_success_screen.dart';
 
 class InvoiceDetailScreen extends StatefulWidget {
   final Map<String, dynamic> invoice;
@@ -22,6 +23,7 @@ class _InvoiceDetailScreenState extends State<InvoiceDetailScreen>
     with WidgetsBindingObserver {
   late Map<String, dynamic> invoice;
   bool isPaying = false;
+  bool _checkingPayment = false;
 
   @override
   void initState() {
@@ -36,10 +38,52 @@ class _InvoiceDetailScreenState extends State<InvoiceDetailScreen>
     super.dispose();
   }
 
+  /// API gọi backend cập nhật trạng thái hóa đơn thành PAID
+ Future<void> _markInvoicePaid(String invoiceId) async {
+    try {
+      final res = await http.patch(
+        Uri.parse('$baseUrl/payment/$invoiceId/mark-paid'),
+        headers: {
+          'Authorization': 'Bearer ${widget.token}',
+          'Content-Type': 'application/json',
+        },
+      );
+      if (res.statusCode == 200) {
+        debugPrint('✅ Hóa đơn đã được cập nhật sang PAID');
+      } else {
+        debugPrint('❌ Lỗi cập nhật hóa đơn: ${res.body}');
+      }
+    } catch (e) {
+      debugPrint('❌ Lỗi kết nối khi cập nhật hóa đơn: $e');
+    }
+  }
+
+
+  /// Khi app quay lại foreground → mark-paid + cập nhật trạng thái
   @override
   void didChangeAppLifecycleState(AppLifecycleState state) {
-    if (state == AppLifecycleState.resumed) {
-      _fetchInvoice();
+    if (state == AppLifecycleState.resumed && !_checkingPayment) {
+      _checkingPayment = true;
+      Future.delayed(const Duration(seconds: 1), () async {
+        await _markInvoicePaid(invoice['_id']); // cập nhật backend
+        await _fetchInvoice(); // lấy dữ liệu mới
+        if (invoice['status'] == 'PAID') {
+          if (mounted) {
+            Navigator.push(
+              context,
+              MaterialPageRoute(
+                builder: (_) => PaymentSuccessScreen(
+                  onDone: () {
+                    Navigator.pop(context); // quay lại InvoiceDetailScreen
+                    _fetchInvoice(); // refresh trạng thái hiển thị
+                  },
+                ),
+              ),
+            );
+          }
+        }
+        _checkingPayment = false;
+      });
     }
   }
 
@@ -79,12 +123,17 @@ class _InvoiceDetailScreenState extends State<InvoiceDetailScreen>
     setState(() => isPaying = false);
 
     if (res.statusCode == 200) {
-      final updated = json.decode(res.body);
-      setState(() => invoice = updated['invoice']);
-      ScaffoldMessenger.of(context).showSnackBar(
-        const SnackBar(content: Text('Đã thanh toán thành công')),
+      Navigator.push(
+        context,
+        MaterialPageRoute(
+          builder: (_) => PaymentSuccessScreen(
+            onDone: () {
+              Navigator.pop(context);
+              _fetchInvoice();
+            },
+          ),
+        ),
       );
-      Navigator.pop(context, true);
     } else {
       debugPrint('Lỗi thanh toán: ${res.statusCode} - ${res.body}');
       ScaffoldMessenger.of(context).showSnackBar(
@@ -112,8 +161,11 @@ class _InvoiceDetailScreenState extends State<InvoiceDetailScreen>
       if (res.statusCode == 200 && data['payUrl'] != null) {
         final payUrl = data['payUrl'] as String;
         if (context.mounted) {
-          await launchUrl(Uri.parse(payUrl),
-              mode: LaunchMode.externalApplication);
+          await launchUrl(
+            Uri.parse(payUrl),
+            mode: LaunchMode.externalApplication,
+          );
+          // Khi quay lại app, didChangeAppLifecycleState sẽ mark-paid và mở PaymentSuccessScreen
         }
       } else {
         debugPrint('⚠️ MoMo không trả về payUrl: ${res.body}');
@@ -239,12 +291,13 @@ class _InvoiceDetailScreenState extends State<InvoiceDetailScreen>
                   children: [
                     ElevatedButton.icon(
                       icon: const Icon(Icons.wallet),
-                      label: const Text('Thanh toán Momo (Giả lập)'),
+                      label: const Text('Thanh toán Momo'),
                       style: ElevatedButton.styleFrom(
                         backgroundColor: Colors.pink.shade400,
                         minimumSize: const Size.fromHeight(48),
                         shape: RoundedRectangleBorder(
-                            borderRadius: BorderRadius.circular(16)),
+                          borderRadius: BorderRadius.circular(16),
+                        ),
                       ),
                       onPressed: _payWithMomo,
                     ),
@@ -262,7 +315,8 @@ class _InvoiceDetailScreenState extends State<InvoiceDetailScreen>
                         backgroundColor: Colors.green.shade700,
                         minimumSize: const Size.fromHeight(48),
                         shape: RoundedRectangleBorder(
-                            borderRadius: BorderRadius.circular(16)),
+                          borderRadius: BorderRadius.circular(16),
+                        ),
                       ),
                       onPressed: isPaying ? null : _payInvoice,
                     ),

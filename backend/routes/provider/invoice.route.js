@@ -5,5 +5,6 @@ const { verifyToken } = require('../../middlewares/auth.middleware');
 
 router.post('/', verifyToken('provider'), controller.createInvoice);
 router.get('/', verifyToken('provider'), controller.getProviderInvoices);
+router.patch('/:id', verifyToken('provider'), controller.updateInvoice);
 
 module.exports = router;

@@ -15,8 +15,8 @@ class MyRequestsScreen extends StatefulWidget {
 class _MyRequestsScreenState extends State<MyRequestsScreen> {
   List<dynamic> requests = [];
   bool isLoading = true;
-  String statusFilter =
-      'ALL'; // ALL | COMPLETED | PENDING | REJECTED | ACCEPTED
+  // ALL | COMPLETED | PENDING | REJECTED | ACCEPTED
+  String statusFilter = 'ALL';
 
   @override
   void initState() {
@@ -24,6 +24,35 @@ class _MyRequestsScreenState extends State<MyRequestsScreen> {
     fetchRequests();
   }
 
+  // ========== Helpers ==========
+  IconData _iconForService(String? type) {
+    final t = (type ?? '').toLowerCase();
+    if (t.contains('phun') || t.contains('thuốc')) return Icons.bug_report;
+    if (t.contains('bón') || t.contains('phân')) return Icons.spa;
+    if (t.contains('khảo') || t.contains('đất')) return Icons.search;
+    if (t.contains('gieo') || t.contains('hạt')) return Icons.agriculture;
+    if (t.contains('tưới') || t.contains('nước') || t.contains('tiêu')) {
+      return Icons.water_drop;
+    }
+    return Icons.miscellaneous_services;
+  }
+
+  Color _statusColor(String status) {
+    switch (status) {
+      case 'COMPLETED':
+        return Colors.green.shade700;
+      case 'ACCEPTED':
+        return Colors.blue.shade700;
+      case 'PENDING':
+        return Colors.orange.shade700;
+      case 'REJECTED':
+        return Colors.red.shade700;
+      default:
+        return Colors.grey.shade700;
+    }
+  }
+
+  // ========== API ==========
   Future<void> fetchRequests() async {
     setState(() => isLoading = true);
 
@@ -111,19 +140,21 @@ class _MyRequestsScreenState extends State<MyRequestsScreen> {
     }
   }
 
+  // ========== UI ==========
   Widget _buildRequestCard(Map<String, dynamic> req) {
     final provider = req['provider_id'];
-    final area = req['area_ha'] ?? 0.0;
+    final area = (req['area_ha'] ?? 0.0).toString();
     final date = req['preferred_date'] != null
         ? DateTime.parse(req['preferred_date'])
             .toLocal()
             .toString()
             .split(' ')[0]
         : 'Chưa chọn';
-    final status = req['status'];
+    final status = (req['status'] ?? '').toString();
     final requestId = req['_id'];
     final rating = req['rating'];
     final comment = req['comment'];
+    final serviceType = (req['service_type'] ?? '').toString();
 
     return GestureDetector(
       onTap: () {
@@ -145,55 +176,101 @@ class _MyRequestsScreenState extends State<MyRequestsScreen> {
           borderRadius: BorderRadius.circular(16),
           boxShadow: const [
             BoxShadow(
-              color: Colors.black12,
-              blurRadius: 8,
-              offset: Offset(0, 4),
-            )
+                color: Colors.black12, blurRadius: 8, offset: Offset(0, 4))
           ],
         ),
-        child: Column(
+        child: Row(
           crossAxisAlignment: CrossAxisAlignment.start,
           children: [
-            Text('Diện tích: $area ha'),
-            Text('Ngày hoàn thành: $date'),
-            Text(
-                'Nhà cung cấp: ${provider != null ? provider['company_name'] : 'Tự do'}'),
-            Text('Trạng thái: $status'),
-            const SizedBox(height: 8),
-            if (status == 'REJECTED')
-              Align(
-                alignment: Alignment.centerRight,
-                child: ElevatedButton(
-                  onPressed: () => _resendRequest(requestId),
-                  style: ElevatedButton.styleFrom(
-                    backgroundColor: Colors.orange.shade700,
-                    shape: RoundedRectangleBorder(
-                      borderRadius: BorderRadius.circular(12),
-                    ),
-                  ),
-                  child: const Text('Gửi lại yêu cầu'),
-                ),
+            // ICON loại dịch vụ
+            CircleAvatar(
+              radius: 28,
+              backgroundColor: Colors.green.shade50,
+              child: Icon(
+                _iconForService(serviceType),
+                color: Colors.green.shade700,
+                size: 28,
               ),
-            if (rating != null)
-              Column(
+            ),
+            const SizedBox(width: 12),
+
+            // Nội dung
+            Expanded(
+              child: Column(
                 crossAxisAlignment: CrossAxisAlignment.start,
                 children: [
-                  const SizedBox(height: 12),
+                  // Tiêu đề + chip trạng thái
                   Row(
                     children: [
-                      const Text('Đánh giá: ',
-                          style: TextStyle(fontWeight: FontWeight.bold)),
-                      Icon(Icons.star, color: Colors.amber),
-                      Text('$rating / 5'),
+                      Expanded(
+                        child: Text(
+                          serviceType.isEmpty ? 'Dịch vụ' : serviceType,
+                          style: const TextStyle(
+                              fontWeight: FontWeight.w700, fontSize: 16),
+                          overflow: TextOverflow.ellipsis,
+                        ),
+                      ),
+                      Container(
+                        padding: const EdgeInsets.symmetric(
+                            horizontal: 10, vertical: 4),
+                        decoration: BoxDecoration(
+                          color: _statusColor(status).withOpacity(0.15),
+                          borderRadius: BorderRadius.circular(20),
+                        ),
+                        child: Text(
+                          status,
+                          style: TextStyle(
+                            color: _statusColor(status),
+                            fontWeight: FontWeight.w600,
+                            fontSize: 12,
+                          ),
+                        ),
+                      ),
                     ],
                   ),
-                  if (comment != null && comment.toString().trim().isNotEmpty)
-                    Padding(
-                      padding: const EdgeInsets.only(top: 4.0),
-                      child: Text('Nhận xét: $comment'),
+
+                  const SizedBox(height: 6),
+                  Text('Diện tích: $area ha'),
+                  Text('Ngày: $date'),
+                  Text(
+                      'Nhà cung cấp: ${provider != null ? provider['company_name'] : 'Tự do'}'),
+
+                  const SizedBox(height: 8),
+
+                  if (status == 'REJECTED')
+                    Align(
+                      alignment: Alignment.centerRight,
+                      child: ElevatedButton(
+                        onPressed: () => _resendRequest(requestId),
+                        style: ElevatedButton.styleFrom(
+                          backgroundColor: Colors.orange.shade700,
+                          shape: RoundedRectangleBorder(
+                            borderRadius: BorderRadius.circular(12),
+                          ),
+                        ),
+                        child: const Text('Gửi lại yêu cầu'),
+                      ),
                     ),
+
+                  if (rating != null) ...[
+                    const SizedBox(height: 10),
+                    Row(
+                      children: [
+                        const Text('Đánh giá: ',
+                            style: TextStyle(fontWeight: FontWeight.bold)),
+                        Icon(Icons.star, color: Colors.amber.shade600),
+                        Text('$rating / 5'),
+                      ],
+                    ),
+                    if (comment != null && comment.toString().trim().isNotEmpty)
+                      Padding(
+                        padding: const EdgeInsets.only(top: 4.0),
+                        child: Text('Nhận xét: $comment'),
+                      ),
+                  ],
                 ],
               ),
+            ),
           ],
         ),
       ),
@@ -210,7 +287,12 @@ class _MyRequestsScreenState extends State<MyRequestsScreen> {
       backgroundColor: Colors.green.shade50,
       appBar: AppBar(
         backgroundColor: Colors.green.shade700,
-        title: const Text('Yêu cầu của tôi'),
+        title: const Text('Yêu cầu của tôi',
+        style: TextStyle(
+            fontWeight: FontWeight.bold,
+            fontSize: 18,
+          ),
+        ),
       ),
       body: isLoading
           ? const Center(child: CircularProgressIndicator())
@@ -239,9 +321,7 @@ class _MyRequestsScreenState extends State<MyRequestsScreen> {
                         ],
                         onChanged: (value) {
                           if (value != null) {
-                            setState(() {
-                              statusFilter = value;
-                            });
+                            setState(() => statusFilter = value);
                           }
                         },
                       ),

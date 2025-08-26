@@ -1,8 +1,13 @@
 import 'dart:convert';
+import 'dart:io';
+
 import 'package:flutter/material.dart';
 import 'package:http/http.dart' as http;
-import '../../utils/constants.dart';
+import 'package:image_picker/image_picker.dart';
+import 'package:http_parser/http_parser.dart';
+
 import '../auth/login_screen.dart';
+
 class FarmerProfileScreen extends StatefulWidget {
   final String token;
   const FarmerProfileScreen({super.key, required this.token});
@@ -20,8 +25,8 @@ class _FarmerProfileScreenState extends State<FarmerProfileScreen> {
   String phone = '';
   String email = '';
   String province = '';
-  double latitude = 0.0;
-  double longitude = 0.0;
+  String? avatarUrl;
+  File? avatarFile;
 
   void logout() {
     Navigator.of(context).pushAndRemoveUntil(
@@ -38,7 +43,7 @@ class _FarmerProfileScreenState extends State<FarmerProfileScreen> {
 
   Future<void> fetchProfile() async {
     final res = await http.get(
-      Uri.parse('$baseUrl/farmer/profile'),
+      Uri.parse('http://10.0.2.2:5000/api/farmer/profile'),
       headers: {'Authorization': 'Bearer ${widget.token}'},
     );
 
@@ -49,9 +54,7 @@ class _FarmerProfileScreenState extends State<FarmerProfileScreen> {
         phone = data['phone'] ?? '';
         email = data['email'] ?? '';
         province = data['location']?['province'] ?? '';
-        latitude = (data['location']?['coordinates']?['lat'] ?? 0.0).toDouble();
-        longitude =
-            (data['location']?['coordinates']?['lng'] ?? 0.0).toDouble();
+        avatarUrl = data['avatar'];
         isLoading = false;
       });
     } else {
@@ -68,12 +71,11 @@ class _FarmerProfileScreenState extends State<FarmerProfileScreen> {
       'phone': phone,
       'location': {
         'province': province,
-        'coordinates': {'lat': latitude, 'lng': longitude}
       }
     };
 
     final res = await http.patch(
-      Uri.parse('$baseUrl/farmer/profile'),
+      Uri.parse('http://10.0.2.2:5000/api/farmer/profile'),
       headers: {
         'Authorization': 'Bearer ${widget.token}',
         'Content-Type': 'application/json',
@@ -93,13 +95,57 @@ class _FarmerProfileScreenState extends State<FarmerProfileScreen> {
     }
   }
 
+  Future<void> pickAndUploadAvatar() async {
+    final picker = ImagePicker();
+    final picked = await picker.pickImage(source: ImageSource.gallery);
+
+    if (picked == null) return;
+
+    setState(() => avatarFile = File(picked.path));
+
+    final ext = picked.path.split('.').last.toLowerCase();
+    final mime =
+        ext == 'png' ? MediaType('image', 'png') : MediaType('image', 'jpeg');
+
+    final request = http.MultipartRequest(
+      'POST',
+      Uri.parse('http://10.0.2.2:5000/api/farmer/avatar/upload'),
+    );
+    request.headers['Authorization'] = 'Bearer ${widget.token}';
+    request.files.add(await http.MultipartFile.fromPath(
+      'avatar',
+      avatarFile!.path,
+      contentType: mime,
+    ));
+
+    final response = await request.send();
+    final resp = await http.Response.fromStream(response);
+
+    if (resp.statusCode == 200) {
+      final data = json.decode(resp.body);
+      setState(() => avatarUrl = data['avatar']);
+      ScaffoldMessenger.of(context).showSnackBar(
+        const SnackBar(content: Text('Cập nhật avatar thành công')),
+      );
+    } else {
+      ScaffoldMessenger.of(context).showSnackBar(
+        const SnackBar(content: Text('Cập nhật avatar thất bại')),
+      );
+    }
+  }
+
   @override
   Widget build(BuildContext context) {
     return Scaffold(
       backgroundColor: Colors.green.shade50,
       appBar: AppBar(
         backgroundColor: Colors.green.shade700,
-        title: const Text('Tài khoản'),
+        title: const Text('Tài khoản',
+          style: TextStyle(
+            fontWeight: FontWeight.bold,
+            fontSize: 18,
+          ),
+        ),
       ),
       body: isLoading
           ? const Center(child: CircularProgressIndicator())
@@ -116,7 +162,7 @@ class _FarmerProfileScreenState extends State<FarmerProfileScreen> {
                       BoxShadow(
                         color: Colors.black12,
                         blurRadius: 12,
-                        offset: Offset(0, 8),
+                        offset: const Offset(0, 8),
                       ),
                     ],
                   ),
@@ -124,6 +170,42 @@ class _FarmerProfileScreenState extends State<FarmerProfileScreen> {
                     key: _formKey,
                     child: Column(
                       children: [
+                        GestureDetector(
+                          onTap: pickAndUploadAvatar,
+                          child: Stack(
+                            alignment: Alignment.center,
+                            children: [
+                              CircleAvatar(
+                                radius: 50,
+                                backgroundColor: Colors.grey.shade300,
+                                backgroundImage: avatarFile != null
+                                    ? FileImage(avatarFile!)
+                                    : (avatarUrl != null
+                                        ? NetworkImage(
+                                            'http://10.0.2.2:5000$avatarUrl')
+                                        : null) as ImageProvider<Object>?,
+                                child: avatarFile == null && avatarUrl == null
+                                    ? const Icon(Icons.person,
+                                        size: 48, color: Colors.white)
+                                    : null,
+                              ),
+                              Positioned(
+                                bottom: 0,
+                                right: 0,
+                                child: Container(
+                                  decoration: const BoxDecoration(
+                                    color: Colors.green,
+                                    shape: BoxShape.circle,
+                                  ),
+                                  padding: const EdgeInsets.all(6),
+                                  child: const Icon(Icons.edit,
+                                      size: 16, color: Colors.white),
+                                ),
+                              ),
+                            ],
+                          ),
+                        ),
+                        const SizedBox(height: 16),
                         TextFormField(
                           initialValue: name,
                           enabled: isEditing,
@@ -165,32 +247,6 @@ class _FarmerProfileScreenState extends State<FarmerProfileScreen> {
                             border: OutlineInputBorder(),
                           ),
                           onChanged: (val) => province = val,
-                        ),
-                        const SizedBox(height: 16),
-                        TextFormField(
-                          initialValue: latitude.toString(),
-                          enabled: isEditing,
-                          decoration: const InputDecoration(
-                            labelText: 'Vĩ độ (lat)',
-                            prefixIcon: Icon(Icons.map_outlined),
-                            border: OutlineInputBorder(),
-                          ),
-                          keyboardType: TextInputType.number,
-                          onChanged: (val) =>
-                              latitude = double.tryParse(val) ?? 0.0,
-                        ),
-                        const SizedBox(height: 16),
-                        TextFormField(
-                          initialValue: longitude.toString(),
-                          enabled: isEditing,
-                          decoration: const InputDecoration(
-                            labelText: 'Kinh độ (lng)',
-                            prefixIcon: Icon(Icons.map),
-                            border: OutlineInputBorder(),
-                          ),
-                          keyboardType: TextInputType.number,
-                          onChanged: (val) =>
-                              longitude = double.tryParse(val) ?? 0.0,
                         ),
                         const SizedBox(height: 24),
                         SizedBox(

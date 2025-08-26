@@ -1,8 +1,9 @@
+import 'dart:async';
 import 'package:flutter/material.dart';
 import 'package:uni_links/uni_links.dart';
-import 'dart:async';
+import 'dart:convert';
 import 'package:http/http.dart' as http;
-import 'utils/constants.dart'; // để có baseUrl nếu bạn đã định nghĩa
+import 'utils/constants.dart';
 
 import 'screens/auth/login_screen.dart';
 import 'screens/auth/register_screen.dart';
@@ -11,6 +12,7 @@ import 'screens/provider/provider_home_screen.dart';
 import 'screens/farmer/payment_success_screen.dart';
 
 final GlobalKey<NavigatorState> navigatorKey = GlobalKey<NavigatorState>();
+
 void main() {
   WidgetsFlutterBinding.ensureInitialized();
   runApp(const MyApp());
@@ -29,8 +31,8 @@ class _MyAppState extends State<MyApp> {
   @override
   void initState() {
     super.initState();
-    _handleInitialUri(); // khi mở app bằng link
-    _handleIncomingLinks(); // khi app đang chạy
+    _handleInitialUri(); // Khi mở app từ deep link lúc khởi động
+    _handleIncomingLinks(); // Khi app đang chạy và nhận link
   }
 
   Future<void> _handleInitialUri() async {
@@ -54,6 +56,7 @@ class _MyAppState extends State<MyApp> {
     if (uri == null) return;
     debugPrint('📥 Deep link received: $uri');
 
+    // Bắt link myapp://payment/success
     if (uri.scheme == 'myapp' &&
         uri.host == 'payment' &&
         uri.path == '/success') {
@@ -62,11 +65,11 @@ class _MyAppState extends State<MyApp> {
 
       if (resultCode == '0' && invoiceId != null) {
         try {
+          // Cập nhật hóa đơn thành PAID
           final res = await http.patch(
-            Uri.parse('$baseUrl/payment/$invoiceId/mark-paid'),
+            Uri.parse('$baseUrl/invoices/$invoiceId/mark-paid'),
             headers: {
               'Content-Type': 'application/json',
-              // 'Authorization': 'Bearer $token', nếu bạn có auth
             },
           );
 
@@ -79,18 +82,22 @@ class _MyAppState extends State<MyApp> {
           debugPrint('❌ Lỗi kết nối khi cập nhật hóa đơn: $e');
         }
 
-        // ✅ Điều hướng tới trang thông báo
+        // Điều hướng sang PaymentSuccessScreen
         Future.delayed(Duration.zero, () {
           navigatorKey.currentState?.push(
             MaterialPageRoute(
-              builder: (_) => const PaymentSuccessScreen(),
+              builder: (_) => PaymentSuccessScreen(
+                onDone: () {
+                  navigatorKey.currentState
+                      ?.pop(); // Quay lại InvoiceDetailScreen
+                },
+              ),
             ),
           );
         });
       }
     }
   }
-
 
   @override
   void dispose() {

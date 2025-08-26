@@ -27,6 +27,38 @@ class _InvoiceScreenState extends State<InvoiceScreen> {
     fetchInvoices();
   }
 
+  // ---------- Helpers ----------
+  String _serverOrigin() => baseUrl.replaceFirst(RegExp(r'/api/?$'), '');
+
+  String _resolveAvatarUrl(String? raw) {
+    if (raw == null) return '';
+    var v = raw.trim();
+    if (v.isEmpty) return '';
+    if (v.startsWith('http')) return v;
+    v = v.replaceAll('\\', '/');
+    final path = v.startsWith('/') ? v : '/$v';
+    return '${_serverOrigin()}$path';
+  }
+
+  String _initials(String? name) {
+    if (name == null || name.trim().isEmpty) return '?';
+    final parts = name.trim().split(RegExp(r'\s+'));
+    if (parts.length == 1) return parts.first.characters.first.toUpperCase();
+    return (parts.first.characters.first + parts.last.characters.first)
+        .toUpperCase();
+  }
+
+  String _formatVND(num n) {
+    final s = n.toStringAsFixed(0);
+    final buf = StringBuffer();
+    for (int i = 0; i < s.length; i++) {
+      final idx = s.length - i - 1;
+      buf.write(s[i]);
+      if ((idx) % 3 == 0 && i != s.length - 1) buf.write(',');
+    }
+    return '${buf.toString()} VND';
+  }
+
   Future<void> fetchInvoices() async {
     setState(() => isLoading = true);
 
@@ -36,8 +68,10 @@ class _InvoiceScreenState extends State<InvoiceScreen> {
     );
 
     if (res.statusCode == 200) {
+      final data = json.decode(res.body);
+      final list = data is List ? data : (data['invoices'] as List? ?? []);
       setState(() {
-        invoices = json.decode(res.body);
+        invoices = list;
         isLoading = false;
 
         allServiceTypes = invoices
@@ -54,6 +88,7 @@ class _InvoiceScreenState extends State<InvoiceScreen> {
     }
   }
 
+  // ---------- Filtering & Stats ----------
   List<dynamic> get filteredInvoices {
     return invoices.where((inv) {
       final farmer = inv['farmer_id'];
@@ -72,6 +107,20 @@ class _InvoiceScreenState extends State<InvoiceScreen> {
       return matchesFarmer && matchesStatus && matchesService;
     }).toList();
   }
+
+  int get paidCount =>
+      filteredInvoices.where((inv) => inv['status'] == 'PAID').length;
+
+  int get unpaidCount =>
+      filteredInvoices.where((inv) => inv['status'] == 'UNPAID').length;
+
+  double get paidTotal =>
+      filteredInvoices.where((inv) => inv['status'] == 'PAID').fold<double>(
+          0, (sum, inv) => sum + (inv['total_amount'] ?? 0).toDouble());
+
+  double get unpaidTotal =>
+      filteredInvoices.where((inv) => inv['status'] == 'UNPAID').fold<double>(
+          0, (sum, inv) => sum + (inv['total_amount'] ?? 0).toDouble());
 
   void _showFilterSheet() {
     showModalBottomSheet(
@@ -169,6 +218,9 @@ class _InvoiceScreenState extends State<InvoiceScreen> {
     final invoiceStatus = invoice['status'] ?? '---';
     final isPaid = invoiceStatus == 'PAID';
 
+    final avatarUrl = _resolveAvatarUrl(farmer?['avatar']?.toString());
+    final initials = _initials(farmer?['name']);
+
     return Container(
       margin: const EdgeInsets.symmetric(horizontal: 16, vertical: 8),
       padding: const EdgeInsets.all(16),
@@ -180,6 +232,36 @@ class _InvoiceScreenState extends State<InvoiceScreen> {
         ],
       ),
       child: ListTile(
+        contentPadding: EdgeInsets.zero,
+        leading: SizedBox(
+          width: 48,
+          height: 48,
+          child: ClipOval(
+            child: avatarUrl.isNotEmpty
+                ? Image.network(
+                    avatarUrl,
+                    fit: BoxFit.cover,
+                    errorBuilder: (_, __, ___) => Container(
+                      color: Colors.green.shade100,
+                      alignment: Alignment.center,
+                      child: Text(
+                        initials,
+                        style: const TextStyle(
+                            fontWeight: FontWeight.bold, fontSize: 14),
+                      ),
+                    ),
+                  )
+                : Container(
+                    color: Colors.green.shade100,
+                    alignment: Alignment.center,
+                    child: Text(
+                      initials,
+                      style: const TextStyle(
+                          fontWeight: FontWeight.bold, fontSize: 14),
+                    ),
+                  ),
+          ),
+        ),
         title: Text('Dịch vụ: $service',
             style: const TextStyle(fontWeight: FontWeight.bold)),
         subtitle: Column(
@@ -187,7 +269,7 @@ class _InvoiceScreenState extends State<InvoiceScreen> {
           children: [
             Text('Ngày: $date'),
             Text('Trạng thái yêu cầu: $status'),
-            Text('Tổng tiền: ${invoice['total_amount']} VND'),
+            Text('Tổng tiền: ${_formatVND((invoice['total_amount'] ?? 0))}'),
             Text('Nông dân: ${farmer?['name'] ?? 'Không rõ'}'),
             Text(
               'Thanh toán: ${isPaid ? 'Đã thanh toán' : 'Chưa thanh toán'}',
@@ -212,6 +294,64 @@ class _InvoiceScreenState extends State<InvoiceScreen> {
     );
   }
 
+  Widget _statCard({
+    required String title,
+    required int count,
+    required double total,
+    required Color color,
+    required IconData icon,
+  }) {
+    return Expanded(
+      child: Container(
+        height: 88,
+        padding: const EdgeInsets.all(14),
+        decoration: BoxDecoration(
+          color: Colors.white,
+          borderRadius: BorderRadius.circular(16),
+          boxShadow: const [
+            BoxShadow(
+                color: Colors.black12, blurRadius: 8, offset: Offset(0, 4)),
+          ],
+          border: Border.all(color: color.withOpacity(0.2)),
+        ),
+        child: Row(
+          children: [
+            Container(
+              width: 42,
+              height: 42,
+              decoration: BoxDecoration(
+                color: color.withOpacity(0.12),
+                shape: BoxShape.circle,
+              ),
+              child: Icon(icon, color: color),
+            ),
+            const SizedBox(width: 12),
+            Expanded(
+              child: Column(
+                crossAxisAlignment: CrossAxisAlignment.start,
+                mainAxisAlignment: MainAxisAlignment.center,
+                children: [
+                  Text(title,
+                      style: TextStyle(fontSize: 12, color: Colors.grey[700])),
+                  const SizedBox(height: 4),
+                  Text('$count hoá đơn',
+                      style: const TextStyle(
+                          fontWeight: FontWeight.w600, fontSize: 14)),
+                  Text(_formatVND(total),
+                      overflow: TextOverflow.ellipsis,
+                      style: TextStyle(
+                          fontSize: 12,
+                          color: color,
+                          fontWeight: FontWeight.w600)),
+                ],
+              ),
+            ),
+          ],
+        ),
+      ),
+    );
+  }
+
   @override
   Widget build(BuildContext context) {
     return Scaffold(
@@ -220,6 +360,7 @@ class _InvoiceScreenState extends State<InvoiceScreen> {
           ? const Center(child: CircularProgressIndicator())
           : Column(
               children: [
+                // Header + nút lọc
                 Padding(
                   padding:
                       const EdgeInsets.symmetric(horizontal: 16, vertical: 16),
@@ -237,6 +378,35 @@ class _InvoiceScreenState extends State<InvoiceScreen> {
                     ],
                   ),
                 ),
+
+                // Stats: Paid / Unpaid (count + total)
+                Padding(
+                  padding: const EdgeInsets.symmetric(horizontal: 16),
+                  child: Row(
+                    mainAxisAlignment: MainAxisAlignment.spaceBetween,
+                    children: [
+                      _statCard(
+                        title: 'Đã thanh toán',
+                        count: paidCount,
+                        total: paidTotal,
+                        color: Colors.green.shade700,
+                        icon: Icons.verified,
+                      ),
+                      const SizedBox(width: 12),
+                      _statCard(
+                        title: 'Chưa thanh toán',
+                        count: unpaidCount,
+                        total: unpaidTotal,
+                        color: Colors.orange.shade700,
+                        icon: Icons.pending_actions,
+                      ),
+                    ],
+                  ),
+                ),
+
+                const SizedBox(height: 8),
+
+                // List
                 Expanded(
                   child: RefreshIndicator(
                     onRefresh: fetchInvoices,

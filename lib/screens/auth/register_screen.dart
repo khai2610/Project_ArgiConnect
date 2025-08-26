@@ -1,6 +1,11 @@
 import 'dart:convert';
+import 'dart:io';
+
 import 'package:flutter/material.dart';
 import 'package:http/http.dart' as http;
+import 'package:image_picker/image_picker.dart';
+import 'package:http_parser/http_parser.dart'; // 👈 Quan trọng
+
 import '../../utils/constants.dart';
 import 'login_screen.dart';
 
@@ -21,33 +26,59 @@ class _RegisterScreenState extends State<RegisterScreen> {
   String location = '';
   String companyName = '';
   String address = '';
+  File? avatarFile;
   bool isLoading = false;
+
+  Future<void> _pickAvatar() async {
+    final picker = ImagePicker();
+    final picked = await picker.pickImage(source: ImageSource.gallery);
+    if (picked != null) {
+      setState(() {
+        avatarFile = File(picked.path);
+      });
+    }
+  }
 
   Future<void> _register() async {
     _formKey.currentState!.save();
     setState(() => isLoading = true);
 
-    final payload = {
-      'role': role,
-      'email': email,
-      'password': password,
-      'phone': phone,
-    };
-
-    if (role == farmerRole) {
-      payload['name'] = name;
-      payload['location'] = location;
-    } else {
-      payload['company_name'] = companyName;
-      payload['address'] = address;
-    }
-
     try {
-      final response = await http.post(
-        Uri.parse(authRegisterEndpoint),
-        headers: {'Content-Type': 'application/json'},
-        body: json.encode(payload),
-      );
+      final uri = Uri.parse(authRegisterEndpoint);
+      final request = http.MultipartRequest('POST', uri);
+
+      request.fields['role'] = role;
+      request.fields['email'] = email;
+      request.fields['password'] = password;
+      request.fields['phone'] = phone;
+
+      if (role == farmerRole) {
+        request.fields['name'] = name;
+        request.fields['location'] = json.encode({
+          'province': location,
+          'coordinates': {'lat': 0.0, 'lng': 0.0}
+        });
+      } else {
+        request.fields['company_name'] = companyName;
+        request.fields['address'] = address;
+      }
+
+      if (avatarFile != null) {
+        final ext = avatarFile!.path.split('.').last.toLowerCase();
+        final mime = (ext == 'png')
+            ? MediaType('image', 'png')
+            : MediaType('image', 'jpeg');
+
+        final avatar = await http.MultipartFile.fromPath(
+          'avatar',
+          avatarFile!.path,
+          contentType: mime,
+        );
+        request.files.add(avatar);
+      }
+
+      final streamed = await request.send();
+      final response = await http.Response.fromStream(streamed);
 
       if (response.statusCode == 201) {
         if (!mounted) return;
@@ -109,7 +140,7 @@ class _RegisterScreenState extends State<RegisterScreen> {
                     BoxShadow(
                       color: Colors.black12,
                       blurRadius: 12,
-                      offset: Offset(0, 8),
+                      offset: const Offset(0, 8),
                     ),
                   ],
                 ),
@@ -117,6 +148,23 @@ class _RegisterScreenState extends State<RegisterScreen> {
                   key: _formKey,
                   child: Column(
                     children: [
+                      // Avatar Picker
+                      GestureDetector(
+                        onTap: _pickAvatar,
+                        child: CircleAvatar(
+                          radius: 48,
+                          backgroundColor: Colors.grey.shade300,
+                          backgroundImage: avatarFile != null
+                              ? FileImage(avatarFile!)
+                              : null,
+                          child: avatarFile == null
+                              ? const Icon(Icons.camera_alt,
+                                  size: 32, color: Colors.grey)
+                              : null,
+                        ),
+                      ),
+                      const SizedBox(height: 16),
+
                       DropdownButtonFormField<String>(
                         value: role,
                         items: const [
@@ -173,7 +221,7 @@ class _RegisterScreenState extends State<RegisterScreen> {
                         const SizedBox(height: 16),
                         TextFormField(
                           decoration: const InputDecoration(
-                            labelText: 'Địa chỉ (location)',
+                            labelText: 'Tỉnh/Thành (location)',
                             prefixIcon: Icon(Icons.location_on_outlined),
                             border: OutlineInputBorder(),
                           ),

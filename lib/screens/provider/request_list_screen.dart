@@ -7,6 +7,23 @@ import '../../utils/constants.dart';
 import 'provider_map_screen.dart';
 import 'request_detail_screen.dart';
 
+// ✅ Định nghĩa icon theo loại dịch vụ
+final List<Map<String, dynamic>> categories = [
+  {'icon': Icons.bug_report, 'label': 'Phun thuốc', 'value': 'Phun thuốc'},
+  {'icon': Icons.spa, 'label': 'Bón phân', 'value': 'Bón phân'},
+  {'icon': Icons.search, 'label': 'Khảo sát đất', 'value': 'Khảo sát đất'},
+  {'icon': Icons.agriculture, 'label': 'Gieo hạt', 'value': 'Gieo hạt'},
+  {'icon': Icons.water_drop, 'label': 'Tưới tiêu', 'value': 'Tưới tiêu'},
+];
+
+IconData getServiceIcon(String type) {
+  final match = categories.firstWhere(
+    (c) => c['value'] == type,
+    orElse: () => {'icon': Icons.miscellaneous_services},
+  );
+  return match['icon'];
+}
+
 class RequestListScreen extends StatefulWidget {
   final String token;
   const RequestListScreen({super.key, required this.token});
@@ -22,7 +39,6 @@ class _RequestListScreenState extends State<RequestListScreen> {
   int revenueToday = 0;
   bool isLoading = true;
   Position? _currentPosition;
-  final Map<MarkerId, Marker> _markers = {};
 
   @override
   void initState() {
@@ -109,11 +125,27 @@ class _RequestListScreenState extends State<RequestListScreen> {
             .split(' ')[0]
         : '---';
     final status = req['status'];
+    final farmer = req['farmer_id'];
+
+    final avatar = (farmer != null &&
+            farmer['avatar'] != null &&
+            farmer['avatar'].toString().isNotEmpty)
+        ? (farmer['avatar'].toString().startsWith('http')
+            ? farmer['avatar']
+            : 'http://10.0.2.2:5000${farmer['avatar']}')
+        : null;
 
     return Card(
       margin: const EdgeInsets.symmetric(horizontal: 16, vertical: 8),
       shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(16)),
       child: ListTile(
+        leading: CircleAvatar(
+          backgroundColor: Colors.green.shade100,
+          child: Icon(
+            getServiceIcon(service),
+            color: Colors.green.shade800,
+          ),
+        ),
         title: Text('$crop - $service'),
         subtitle: Column(
           crossAxisAlignment: CrossAxisAlignment.start,
@@ -123,7 +155,14 @@ class _RequestListScreenState extends State<RequestListScreen> {
             Text('Trạng thái: $status'),
           ],
         ),
-        trailing: const Icon(Icons.arrow_forward_ios, size: 16),
+        trailing: CircleAvatar(
+          radius: 30,
+          backgroundColor: Colors.grey.shade200,
+          backgroundImage: avatar != null ? NetworkImage(avatar) : null,
+          child: avatar == null
+              ? const Icon(Icons.person, color: Colors.white)
+              : null,
+        ),
         onTap: () async {
           final result = await Navigator.push(
             context,
@@ -197,7 +236,6 @@ class _RequestListScreenState extends State<RequestListScreen> {
         child: Row(
           mainAxisAlignment: MainAxisAlignment.spaceEvenly,
           children: [
-            // ✅ Hôm nay đã bay
             Expanded(
               child: Column(
                 children: [
@@ -206,10 +244,8 @@ class _RequestListScreenState extends State<RequestListScreen> {
                     children: const [
                       Icon(Icons.work, color: Colors.green, size: 24),
                       SizedBox(width: 6),
-                      Text(
-                        'Hôm nay đã bay',
-                        style: TextStyle(fontWeight: FontWeight.bold),
-                      ),
+                      Text('Hôm nay đã bay',
+                          style: TextStyle(fontWeight: FontWeight.bold)),
                     ],
                   ),
                   const SizedBox(height: 4),
@@ -221,10 +257,7 @@ class _RequestListScreenState extends State<RequestListScreen> {
                 ],
               ),
             ),
-
             const SizedBox(width: 16),
-
-            // ✅ Doanh thu hôm nay
             Expanded(
               child: Column(
                 children: [
@@ -233,10 +266,8 @@ class _RequestListScreenState extends State<RequestListScreen> {
                     children: const [
                       Icon(Icons.attach_money, color: Colors.orange, size: 24),
                       SizedBox(width: 6),
-                      Text(
-                        'Doanh thu',
-                        style: TextStyle(fontWeight: FontWeight.bold),
-                      ),
+                      Text('Doanh thu',
+                          style: TextStyle(fontWeight: FontWeight.bold)),
                     ],
                   ),
                   const SizedBox(height: 4),
@@ -253,7 +284,6 @@ class _RequestListScreenState extends State<RequestListScreen> {
       ),
     );
   }
-
 
   Widget _buildFilterDropdown() {
     return Padding(

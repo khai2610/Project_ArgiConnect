@@ -5,69 +5,88 @@
         <div v-if="loading" class="text-gray-500">Đang tải dữ liệu...</div>
 
         <div v-else>
-            <!-- Thống kê chung -->
-            <div class="grid grid-cols-1 md:grid-cols-3 gap-4 mb-8">
-                <div class="bg-white shadow-md rounded-xl p-4">
-                    <h3 class="text-lg font-semibold text-gray-700">🏢 Công ty</h3>
-                    <p class="text-gray-900">{{ provider.company_name || '---' }}</p>
-                </div>
-                <div class="bg-white shadow-md rounded-xl p-4">
-                    <h3 class="text-lg font-semibold text-gray-700">🛠 Số dịch vụ</h3>
-                    <p class="text-gray-900">{{ provider.services?.length ?? 0 }}</p>
-                </div>
-                <div class="bg-white shadow-md rounded-xl p-4">
-                    <h3 class="text-lg font-semibold text-gray-700">📋 Tổng yêu cầu</h3>
-                    <p class="text-gray-900">{{ requestCount }}</p>
-                </div>
-            </div>
+            <!-- Map (5) + Stats (3) -->
+            <div class="flex gap-4 mb-8 items-stretch">
+                <!-- 📍 Bản đồ (5 phần) -->
+                <div class="flex-[5] bg-white shadow-md rounded-xl p-4 flex flex-col h-[72vh]">
+                    <h3 class="text-lg font-semibold text-gray-700 mb-2">📍 Các yêu cầu xung quanh</h3>
 
-            <!-- 📍 Bản đồ -->
-            <div class="bg-white shadow-md rounded-xl p-4 mb-8">
-                <h3 class="text-lg font-semibold text-gray-700 mb-2">📍 Các yêu cầu xung quanh</h3>
-                <LMap v-if="requestsNearby.length > 0" :zoom="13"
-                    :center="[requestsNearby[0].field_location.coordinates.lat, requestsNearby[0].field_location.coordinates.lng]"
-                    style="height: 400px; width: 100%">
-                    <LTileLayer url="https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png"
-                        attribution="&copy; OpenStreetMap contributors" />
+                    <div class="flex-1">
+                        <LMap v-if="requestsNearby.length > 0" :zoom="13" :center="[
+                            requestsNearby[0].field_location.coordinates.lat,
+                            requestsNearby[0].field_location.coordinates.lng
+                        ]" class="w-full h-full">
+                            <LTileLayer url="https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png"
+                                attribution="&copy; OpenStreetMap contributors" />
+                            <LMarker v-for="req in requestsNearby" :key="req._id"
+                                :lat-lng="[req.field_location.coordinates.lat, req.field_location.coordinates.lng]">
+                                <template #popup>
+                                    <div>
+                                        <p class="font-semibold">📋 {{ req.service_type }}</p>
+                                        <p>🌾 {{ req.crop_type }} | {{ req.area_ha }} ha</p>
+                                        <p>🗓 {{ new Date(req.preferred_date).toLocaleDateString() }}</p>
+                                    </div>
+                                </template>
+                            </LMarker>
+                        </LMap>
+                        <p v-else class="text-gray-500 italic">Không có yêu cầu nào có toạ độ</p>
+                    </div>
+                </div>
 
-                    <!-- Marker các yêu cầu -->
-                    <LMarker v-for="req in requestsNearby" :key="req._id"
-                        :lat-lng="[req.field_location.coordinates.lat, req.field_location.coordinates.lng]">
-                        <template #popup>
+                <!-- 📊 Cột thống kê (3 phần) -->
+                <div class="flex-[3] flex flex-col gap-4 max-h-[72vh] overflow-auto">
+                    <!-- Thông tin nhanh -->
+                    <div class="bg-white shadow-md rounded-xl p-4">
+                        <h3 class="text-lg font-semibold text-gray-700">🏢 Công ty</h3>
+                        <p class="text-gray-900">{{ provider.company_name || '---' }}</p>
+                    </div>
+                    <div class="bg-white shadow-md rounded-xl p-4">
+                        <h3 class="text-lg font-semibold text-gray-700">🛠 Số dịch vụ</h3>
+                        <p class="text-gray-900">{{ provider.services?.length ?? 0 }}</p>
+                    </div>
+                    <div class="bg-white shadow-md rounded-xl p-4">
+                        <h3 class="text-lg font-semibold text-gray-700">📋 Tổng yêu cầu</h3>
+                        <p class="text-gray-900">{{ requestCount }}</p>
+                    </div>
+
+                    <!-- Bộ lọc thời gian -->
+                    <div class="bg-white shadow-md rounded-xl p-4">
+                        <div class="flex justify-between items-center">
+                            <h3 class="text-md font-bold">📈 Thống kê theo {{ selectedRangeLabel }}</h3>
+                            <select v-model="selectedRange" class="border rounded px-3 py-1 text-sm">
+                                <option value="week">Tuần này</option>
+                                <option value="month">Tháng này</option>
+                                <option value="year">Năm nay</option>
+                            </select>
+                        </div>
+                    </div>
+
+                    <!-- Hóa đơn: Tổng / Đã TT / Chưa TT -->
+                    <div class="bg-white p-4 rounded shadow">
+                        <h4 class="text-gray-600">🧾 Hóa đơn</h4>
+                        <div class="mt-2 grid grid-cols-3 gap-4">
                             <div>
-                                <p class="font-semibold">📋 {{ req.service_type }}</p>
-                                <p>🌾 {{ req.crop_type }} | {{ req.area_ha }} ha</p>
-                                <p>🗓 {{ new Date(req.preferred_date).toLocaleDateString() }}</p>
+                                <p class="text-xs text-gray-500">Tổng</p>
+                                <p class="text-xl font-bold">{{ stats.invoices.total }}</p>
                             </div>
-                        </template>
-                    </LMarker>
-                </LMap>
-                <p v-else class="text-gray-500 italic">Không có yêu cầu nào có toạ độ</p>
-            </div>
+                            <div>
+                                <p class="text-xs text-gray-500">Đã thanh toán</p>
+                                <p class="text-xl font-bold text-green-600">{{ stats.invoices.paid }}</p>
+                            </div>
+                            <div>
+                                <p class="text-xs text-gray-500">Chưa thanh toán</p>
+                                <p class="text-xl font-bold text-red-600">{{ stats.invoices.unpaid }}</p>
+                            </div>
+                        </div>
+                    </div>
 
-            <!-- 📊 Thống kê linh hoạt -->
-            <div class="flex justify-between items-center mb-4">
-                <h3 class="text-xl font-bold">📈 Thống kê theo {{ selectedRangeLabel }}</h3>
-                <select v-model="selectedRange" class="border rounded px-3 py-1 text-sm">
-                    <option value="week">Tuần này</option>
-                    <option value="month">Tháng này</option>
-                    <option value="year">Năm nay</option>
-                </select>
-            </div>
-
-            <!-- Bảng thống kê -->
-            <div class="grid grid-cols-1 md:grid-cols-3 gap-4 mb-6">
-                <div class="bg-white p-4 rounded shadow">
-                    <h4 class="text-gray-600">📋 Yêu cầu</h4>
-                    <p class="text-xl font-bold">{{ stats.requests }}</p>
-                </div>
-                <div class="bg-white p-4 rounded shadow">
-                    <h4 class="text-gray-600">🧾 Hóa đơn</h4>
-                    <p class="text-xl font-bold">{{ stats.invoices }}</p>
-                </div>
-                <div class="bg-white p-4 rounded shadow">
-                    <h4 class="text-gray-600">💰 Đã thanh toán</h4>
-                    <p class="text-xl font-bold">{{ stats.paidInvoices }}</p>
+                    <!-- Doanh thu -->
+                    <div class="bg-white p-4 rounded shadow">
+                        <h4 class="text-gray-600">💰 Doanh thu</h4>
+                        <p class="text-2xl font-extrabold text-green-600 mt-1">
+                            {{ formatCurrency(stats.revenue) }}
+                        </p>
+                    </div>
                 </div>
             </div>
 
@@ -106,24 +125,24 @@ L.Icon.Default.mergeOptions({
 const token = localStorage.getItem('token');
 const headers = { Authorization: `Bearer ${token}` };
 
-const provider = ref({
-    services: [],
-    company_name: '',
-});
+const provider = ref({ services: [], company_name: '' });
 const requestCount = ref(0);
 const loading = ref(true);
 const requestsNearby = ref([]);
 
 // 📊 Thống kê
 const selectedRange = ref('month');
-const stats = ref({ requests: 0, invoices: 0, paidInvoices: 0 });
+const stats = ref({
+    requests: 0,
+    invoices: { total: 0, paid: 0, unpaid: 0 },
+    revenue: 0
+});
 const chartData = ref({ labels: [], datasets: [] });
 const chartOptions = {
     responsive: true,
-    plugins: {
-        legend: { position: 'top' }
-    }
+    plugins: { legend: { position: 'top' } }
 };
+
 const selectedRangeLabel = computed(() => {
     switch (selectedRange.value) {
         case 'week': return 'tuần';
@@ -132,6 +151,9 @@ const selectedRangeLabel = computed(() => {
         default: return '';
     }
 });
+
+const formatCurrency = (v) =>
+    (v || 0).toLocaleString('vi-VN', { style: 'currency', currency: 'VND', maximumFractionDigits: 0 });
 
 const loadProviderData = async () => {
     const profileRes = await axios.get('http://localhost:5000/api/provider/profile', { headers });
@@ -149,6 +171,7 @@ const loadProviderData = async () => {
 
 const loadStats = async () => {
     const res = await axios.get(`http://localhost:5000/api/provider/stats?range=${selectedRange.value}`, { headers });
+    // API mới: { summary: { requests, invoices: {total,paid,unpaid}, revenue }, chart }
     stats.value = res.data.summary;
     chartData.value = res.data.chart;
 };

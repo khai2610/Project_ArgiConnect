@@ -33,13 +33,11 @@ class _ApprovedProvidersScreenState extends State<ApprovedProvidersScreen> {
 
   Future<void> fetchProviders() async {
     final url = Uri.parse(approvedProvidersUrl);
-
     try {
       final res = await http.get(
         url,
         headers: {'Authorization': 'Bearer ${widget.token}'},
       );
-
       if (res.statusCode == 200) {
         final all = json.decode(res.body) as List;
         setState(() {
@@ -55,6 +53,67 @@ class _ApprovedProvidersScreenState extends State<ApprovedProvidersScreen> {
       debugPrint('Exception: $e');
       setState(() => isLoading = false);
     }
+  }
+
+  String _initials(String? name) {
+    if (name == null || name.trim().isEmpty) return "?";
+    final parts = name.trim().split(RegExp(r"\s+"));
+    if (parts.length == 1) return parts.first.characters.first.toUpperCase();
+    return (parts.first.characters.first + parts.last.characters.first)
+        .toUpperCase();
+  }
+
+  String _resolveAvatarUrl(String? raw) {
+    if (raw == null) return '';
+    var v = raw.trim();
+    if (v.isEmpty) return '';
+    if (v.startsWith('http')) return v;
+
+    // Chuẩn hoá dấu "\" -> "/" nếu DB lỡ lưu kiểu Windows path
+    v = v.replaceAll('\\', '/');
+
+    // Lấy server origin từ baseUrl mà không sửa constants:
+    // 'http://10.0.2.2:5000/api' -> 'http://10.0.2.2:5000'
+    final serverOrigin = baseUrl.replaceFirst(RegExp(r'/api/?$'), '');
+
+    // Đảm bảo có dấu "/" trước path
+    final path = v.startsWith('/') ? v : '/$v';
+
+    return '$serverOrigin$path';
+  }
+
+
+  Widget _providerAvatar(Map<String, dynamic> p) {
+    final name = (p['company_name'] ?? '') as String;
+    final url = _resolveAvatarUrl(p['avatar']?.toString());
+    final initials = _initials(name);
+
+    if (url.isNotEmpty) {
+      return CircleAvatar(
+        radius: 24,
+        backgroundColor: Colors.green.shade100,
+        child: ClipOval(
+          child: Image.network(
+            url,
+            width: 48,
+            height: 48,
+            fit: BoxFit.cover,
+            errorBuilder: (_, __, ___) => Text(
+              initials,
+              style: const TextStyle(fontWeight: FontWeight.bold),
+            ),
+          ),
+        ),
+      );
+    }
+    return CircleAvatar(
+      radius: 24,
+      backgroundColor: Colors.green.shade100,
+      child: Text(
+        initials,
+        style: const TextStyle(fontWeight: FontWeight.bold),
+      ),
+    );
   }
 
   Widget _buildProviderCard(Map<String, dynamic> provider,
@@ -75,6 +134,7 @@ class _ApprovedProvidersScreenState extends State<ApprovedProvidersScreen> {
       ),
       child: ListTile(
         contentPadding: EdgeInsets.zero,
+        leading: _providerAvatar(provider),
         title: Text(
           provider['company_name'] ?? 'Không tên',
           style: const TextStyle(fontWeight: FontWeight.bold, fontSize: 16),
@@ -83,13 +143,16 @@ class _ApprovedProvidersScreenState extends State<ApprovedProvidersScreen> {
           crossAxisAlignment: CrossAxisAlignment.start,
           children: [
             const SizedBox(height: 4),
-            Text('Email: ${provider['email']}'),
-            Text('SĐT: ${provider['phone']}'),
-            if (provider['address'] != null)
+            Text('Email: ${provider['email'] ?? "-"}'),
+            Text('SĐT: ${provider['phone'] ?? "-"}'),
+            if (provider['address'] != null &&
+                (provider['address'] as String).trim().isNotEmpty)
               Text('Địa chỉ: ${provider['address']}'),
             if (!isApproved && provider['status'] != null)
-              Text('Trạng thái: ${provider['status']}',
-                  style: const TextStyle(fontStyle: FontStyle.italic)),
+              Text(
+                'Trạng thái: ${provider['status']}',
+                style: const TextStyle(fontStyle: FontStyle.italic),
+              ),
           ],
         ),
         trailing: Row(
@@ -141,7 +204,14 @@ class _ApprovedProvidersScreenState extends State<ApprovedProvidersScreen> {
       backgroundColor: Colors.green.shade50,
       appBar: AppBar(
         backgroundColor: Colors.green.shade700,
-        // title: const Text('Danh sách nhà cung cấp'),
+        title: const Text(
+          'Các Dịch Vụ Có Sẵn', // <-- tiêu đề
+          style: TextStyle(
+            fontWeight: FontWeight.bold,
+            fontSize: 18,
+          ),
+        ),
+        // centerTitle: true,
       ),
       body: isLoading
           ? const Center(child: CircularProgressIndicator())
@@ -150,7 +220,6 @@ class _ApprovedProvidersScreenState extends State<ApprovedProvidersScreen> {
               children: [
                 ProviderCategorySelector(
                   onServiceSelected: (serviceType) {
-                    // TODO: xử lý chuyển trang theo loại dịch vụ
                     Navigator.push(
                       context,
                       MaterialPageRoute(

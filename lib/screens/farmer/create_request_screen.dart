@@ -257,7 +257,12 @@ class _CreateRequestScreenState extends State<CreateRequestScreen> {
         backgroundColor: Colors.green.shade700,
         title: Text(widget.editingRequest != null
             ? "Chỉnh sửa yêu cầu"
-            : "Tạo yêu cầu"),
+            : "Tạo yêu cầu",
+          style: TextStyle(
+            fontWeight: FontWeight.bold,
+            fontSize: 18,
+          ),
+        ),
       ),
       body: isReady
           ? Column(
